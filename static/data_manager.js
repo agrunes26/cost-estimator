@@ -21,35 +21,37 @@ const VISIBLE_COLS = [
 
 const FILTER_COLS = ['part_number','description','product','process','material_family','material','complexity','coo','supplier','finish'];
 
+const PRODUCT_OPTIONS = ['R3', 'R2 INV', 'R2 CAB', 'R2 SDS', 'G1 ACSC', 'G1 MI', 'GB1800'];
+
 function showMsg(text, type) {
-  const el = document.getElementById('msg');
+  var el = document.getElementById('msg');
   el.textContent = text;
   el.className = 'msg ' + type;
-  setTimeout(() => el.style.display = 'none', 5000);
+  setTimeout(function() { el.style.display = 'none'; }, 5000);
 }
 
 async function loadData() {
-  const res = await fetch('/api/parts');
-  const json = await res.json();
+  var res = await fetch('/api/parts');
+  var json = await res.json();
   allParts = json.parts || [];
   renderHeader();
   renderTable();
 }
 
 function renderHeader() {
-  const tr = document.getElementById('headerRow');
+  var tr = document.getElementById('headerRow');
   tr.innerHTML = '';
-  VISIBLE_COLS.forEach(col => {
-    const th = document.createElement('th');
+  VISIBLE_COLS.forEach(function(col) {
+    var th = document.createElement('th');
     th.textContent = col.label;
-    th.onclick = () => sortBy(col.key);
+    th.onclick = function() { sortBy(col.key); };
     if (sortCol === col.key) {
       th.innerHTML += '<span class="sort-arrow">' + (sortDir === 1 ? '▲' : '▼') + '</span>';
     }
     tr.appendChild(th);
   });
   if (IS_ADMIN) {
-    const th = document.createElement('th');
+    var th = document.createElement('th');
     th.textContent = '';
     tr.appendChild(th);
   }
@@ -57,37 +59,62 @@ function renderHeader() {
 }
 
 function renderFilterRow() {
-  let fr = document.getElementById('filterRow');
+  var fr = document.getElementById('filterRow');
   if (!fr) {
     fr = document.createElement('tr');
     fr.id = 'filterRow';
     document.getElementById('headerRow').parentNode.appendChild(fr);
   }
   fr.innerHTML = '';
-  VISIBLE_COLS.forEach(col => {
-    const td = document.createElement('th');
+  VISIBLE_COLS.forEach(function(col) {
+    var td = document.createElement('th');
     td.className = 'filter-cell';
     if (FILTER_COLS.includes(col.key)) {
-      const vals = [...new Set(allParts.map(p => String(p[col.key] || '')).filter(v => v))].sort();
-      const wrapper = document.createElement('div');
+      var vals;
+      if (col.key === 'product') {
+        vals = PRODUCT_OPTIONS;
+      } else {
+        vals = [];
+        var seen = {};
+        allParts.forEach(function(p) {
+          var v = String(p[col.key] || '').trim();
+          if (v && !seen[v]) { seen[v] = true; vals.push(v); }
+        });
+        vals.sort();
+      }
+      var wrapper = document.createElement('div');
       wrapper.className = 'filter-wrap';
-      const btn = document.createElement('button');
+      var btn = document.createElement('button');
       btn.className = 'filter-btn';
-      const active = filters[col.key] && filters[col.key].length > 0;
+      var active = filters[col.key] && filters[col.key].length > 0;
       btn.textContent = active ? filters[col.key].length + ' selected' : 'All';
       if (active) btn.classList.add('active');
-      const dropdown = document.createElement('div');
+      var dropdown = document.createElement('div');
       dropdown.className = 'filter-dropdown';
       dropdown.style.display = 'none';
-      const clearBtn = document.createElement('div');
+      var searchInput = document.createElement('input');
+      searchInput.type = 'text';
+      searchInput.className = 'filter-search';
+      searchInput.placeholder = 'Search...';
+      searchInput.onclick = function(e) { e.stopPropagation(); };
+      searchInput.oninput = function() {
+        var term = searchInput.value.toLowerCase();
+        var options = dropdown.querySelectorAll('.filter-option');
+        options.forEach(function(opt) {
+          var text = opt.textContent.toLowerCase();
+          opt.style.display = text.includes(term) ? '' : 'none';
+        });
+      };
+      dropdown.appendChild(searchInput);
+      var clearBtn = document.createElement('div');
       clearBtn.className = 'filter-clear';
       clearBtn.textContent = 'Clear all';
       clearBtn.onclick = function(e) { e.stopPropagation(); delete filters[col.key]; renderHeader(); renderTable(); };
       dropdown.appendChild(clearBtn);
-      vals.forEach(v => {
-        const lbl = document.createElement('label');
+      vals.forEach(function(v) {
+        var lbl = document.createElement('label');
         lbl.className = 'filter-option';
-        const cb = document.createElement('input');
+        var cb = document.createElement('input');
         cb.type = 'checkbox';
         cb.value = v;
         if (filters[col.key] && filters[col.key].includes(v)) cb.checked = true;
@@ -108,6 +135,11 @@ function renderFilterRow() {
         e.stopPropagation();
         document.querySelectorAll('.filter-dropdown').forEach(function(d) { if (d !== dropdown) d.style.display = 'none'; });
         dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        if (dropdown.style.display === 'block') {
+          searchInput.value = '';
+          searchInput.focus();
+          dropdown.querySelectorAll('.filter-option').forEach(function(opt) { opt.style.display = ''; });
+        }
       };
       wrapper.appendChild(btn);
       wrapper.appendChild(dropdown);
@@ -129,7 +161,14 @@ function renderTable() {
     rows = rows.filter(function(p) { return VISIBLE_COLS.some(function(c) { return String(p[c.key] || '').toLowerCase().includes(search); }); });
   }
   Object.keys(filters).forEach(function(key) {
-    rows = rows.filter(function(p) { return filters[key].includes(String(p[key] || '')); });
+    if (key === 'product') {
+      rows = rows.filter(function(p) {
+        var prodVal = String(p.product || '').toUpperCase();
+        return filters.product.some(function(sel) { return prodVal.indexOf(sel.toUpperCase()) !== -1; });
+      });
+    } else {
+      rows = rows.filter(function(p) { return filters[key].includes(String(p[key] || '')); });
+    }
   });
   if (sortCol) {
     rows = rows.slice().sort(function(a, b) {
