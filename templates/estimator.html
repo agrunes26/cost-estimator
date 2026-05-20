@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Component Cost Estimator</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,sans-serif;background:#f5f5f2;color:#1a1a18;min-height:100vh}
+header{background:#fff;border-bottom:1px solid #e5e7eb;padding:14px 32px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-size:1.3rem;font-weight:700;color:#1a56db}
+.user-info{font-size:.85rem;color:#6b7280;display:flex;align-items:center;gap:16px}
+.user-info a{color:#6b7280;text-decoration:none}
+.user-info a:hover{color:#111}
+.live-banner{background:#f0fdf4;border-bottom:1px solid #86efac;padding:8px 32px;font-size:.82rem;color:#166534;text-align:center;display:none}
+.demo-banner{background:#fffbeb;border-bottom:1px solid #fcd34d;padding:8px 32px;font-size:.82rem;color:#92400e;text-align:center}
+.page{max-width:1240px;margin:0 auto;padding:20px 28px}
+h1{font-size:22px;font-weight:600;margin-bottom:2px}
+.subtitle{font-size:12px;color:#73726c;margin-bottom:18px}
+.card{background:#fff;border:0.5px solid rgba(0,0,0,0.11);border-radius:12px;padding:16px 20px;margin-bottom:14px}
+.top-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.ctrl-lbl{display:block;font-size:11px;font-weight:600;color:#73726c;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+.ms-wrap{position:relative}
+.ms-btn{width:100%;text-align:left;font-size:12px;padding:6px 9px;border:0.5px solid rgba(0,0,0,0.2);border-radius:8px;background:#fff;color:#1a1a18;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ms-btn:hover{background:#f5f5f2}
+.ms-dropdown{position:absolute;top:calc(100% + 3px);left:0;right:0;background:#fff;border:0.5px solid rgba(0,0,0,0.18);border-radius:8px;z-index:300;max-height:200px;overflow-y:auto;display:none;min-width:160px;box-shadow:0 4px 16px rgba(0,0,0,0.1)}
+.ms-dropdown.open{display:block}
+.ms-item{display:flex;align-items:center;gap:7px;padding:6px 10px;font-size:12px;cursor:pointer;color:#1a1a18}
+.ms-item:hover{background:#f5f5f2}
+.ms-item input{cursor:pointer;accent-color:#378ADD}
+.ms-clear{font-size:11px;color:#73726c;padding:5px 10px;border-top:0.5px solid rgba(0,0,0,0.08);cursor:pointer;display:block}
+.ms-clear:hover{color:#1a1a18}
+.opts-row{display:flex;align-items:center;gap:14px;margin-bottom:12px;flex-wrap:wrap}
+.sw{display:flex;align-items:center;gap:6px}
+.sw-lbl{font-size:11px;font-weight:600;color:#73726c;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.sw select{font-size:12px;padding:5px 9px;border:0.5px solid rgba(0,0,0,0.2);border-radius:8px;background:#fff;color:#1a1a18}
+.tog{display:flex;align-items:center;gap:5px;font-size:12px;color:#5f5e5a;cursor:pointer;white-space:nowrap}
+.chart-title-block{text-align:center;margin-bottom:8px}
+.chart-title-block h2{font-size:16px;font-weight:600;color:#1a1a18}
+.chart-title-block p{font-size:12px;color:#73726c;margin-top:2px}
+.tl-bar{background:#f0efec;border-radius:8px;padding:7px 12px;margin-bottom:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.tl-bar span{font-size:12px;color:#73726c}
+.tl-bar strong{color:#1a1a18;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.stat{background:#f0efec;border-radius:8px;padding:8px 12px}
+.stat-val{font-size:18px;font-weight:600;color:#1a1a18}
+.stat-lbl{font-size:11px;color:#73726c;margin-top:2px}
+.chart-area{position:relative;width:100%;height:440px;margin-bottom:10px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-bottom:8px}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:12px;color:#73726c}
+.panel{border:0.5px solid rgba(0,0,0,0.11);border-radius:12px;margin-bottom:14px;overflow:visible}
+.panel-hdr{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;padding:10px 16px;background:#f0efec;border-radius:12px}
+.panel-hdr.open{border-radius:12px 12px 0 0}
+.ph-title{font-size:13px;font-weight:600;color:#1a1a18}
+.ph-sub{font-size:11px;color:#73726c;margin-top:1px}
+.panel-toggle{font-size:11px;color:#73726c;padding:3px 10px;border:0.5px solid rgba(0,0,0,0.18);border-radius:6px;background:#fff;cursor:pointer;flex-shrink:0}
+.panel-body{padding:14px 16px;background:#fff;border-radius:0 0 12px 12px}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:10px;margin-bottom:12px}
+.form-field{display:flex;flex-direction:column;gap:3px}
+.form-field label{font-size:11px;font-weight:600;color:#73726c;text-transform:uppercase;letter-spacing:.03em}
+.form-field input,.form-field select{font-size:13px;padding:6px 9px;border:0.5px solid rgba(0,0,0,0.2);border-radius:8px;background:#fff;color:#1a1a18;width:100%}
+.form-field input:focus,.form-field select:focus{outline:2px solid #378ADD;outline-offset:1px}
+.form-field input[readonly]{background:#f5f5f2;color:#73726c}
+.btn-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.btn{font-size:13px;padding:7px 16px;border:0.5px solid rgba(0,0,0,0.2);border-radius:8px;background:#fff;color:#1a1a18;cursor:pointer;font-weight:500}
+.btn:hover{background:#f0efec}
+.btn-primary{background:#1a1a18;color:#fff;border-color:#1a1a18}
+.btn-primary:hover{background:#444}
+.btn-success{background:#0F6E56;color:#fff;border-color:#0F6E56;display:none}
+.btn-success:hover{background:#085041}
+.btn-success.visible{display:inline-block}
+.est-preview{font-size:12px;color:#73726c;margin-top:6px}
+.est-preview strong{color:#1a1a18}
+.pts-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pt-tag{display:flex;align-items:center;gap:6px;font-size:12px;background:#f0efec;padding:4px 10px;border-radius:20px;cursor:pointer;color:#1a1a18;border:0.5px solid rgba(0,0,0,0.08)}
+.pt-tag:hover{background:#e4e3e0}
+.db-notice{font-size:12px;color:#0F6E56;font-weight:600;padding:6px 12px;background:#E1F5EE;border-radius:8px;display:none}
+.db-notice.visible{display:inline-block}
+.sc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:8px}
+.sc-card{background:#f0efec;border:0.5px solid rgba(0,0,0,0.08);border-radius:8px;padding:8px 10px}
+.sc-card-title{font-size:12px;font-weight:600;color:#1a1a18;margin-bottom:6px}
+.sc-field{display:flex;flex-direction:column;gap:2px;margin-bottom:4px}
+.sc-field label{font-size:11px;color:#73726c}
+.sc-field input{font-size:12px;padding:3px 7px;border:0.5px solid rgba(0,0,0,0.15);border-radius:6px;background:#fff;color:#1a1a18;width:100%}
+.sc-section{font-size:11px;font-weight:600;color:#73726c;text-transform:uppercase;letter-spacing:.04em;margin:12px 0 6px;padding-top:10px;border-top:0.5px solid rgba(0,0,0,0.08)}
+.sc-note{font-size:12px;color:#73726c;background:#FFF8EC;border-left:3px solid #BA7517;border-radius:0 8px 8px 0;padding:8px 12px;margin-bottom:10px}
+.data-table{width:100%;border-collapse:collapse;font-size:12px}
+.data-table th{text-align:left;padding:7px 8px;font-size:11px;font-weight:600;color:#73726c;text-transform:uppercase;letter-spacing:.03em;border-bottom:0.5px solid rgba(0,0,0,0.12);white-space:nowrap;cursor:pointer;user-select:none;background:#f5f5f2;position:sticky;top:0}
+.data-table th:hover{color:#1a1a18}
+.data-table td{padding:5px 8px;color:#1a1a18;border-bottom:0.5px solid rgba(0,0,0,0.06)}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:#f5f5f2}
+.tbl-wrap{overflow-x:auto;max-height:360px;overflow-y:auto;border-radius:0 0 8px 8px}
+.tab-bar{display:flex;gap:6px;margin-bottom:10px}
+.tab-btn{font-size:12px;padding:5px 14px;border:0.5px solid rgba(0,0,0,0.18);border-radius:20px;background:#fff;color:#73726c;cursor:pointer;font-weight:500}
+.tab-btn.active{background:#1a1a18;color:#fff;border-color:#1a1a18}
+.coo-badge{display:inline-block;font-size:11px;font-weight:600;padding:1px 7px;border-radius:4px;background:#E6F1FB;color:#185FA5;margin-left:3px}
+.footer{text-align:center;font-size:11px;color:#888780;margin-top:24px;padding-top:12px;border-top:0.5px solid rgba(0,0,0,0.08)}
+.new-badge{display:inline-block;font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px;background:#E1F5EE;color:#0F6E56;margin-left:5px;vertical-align:middle}
+.quick-est-bar{background:#FFF8EC;border:1px solid #F0D78C;border-radius:10px;padding:9px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.quick-est-bar input{font-size:13px;padding:5px 9px;border:0.5px solid rgba(0,0,0,0.2);border-radius:8px;background:#fff;color:#1a1a18;width:140px}
+.quick-est-bar input:focus{outline:2px solid #FF6B00;outline-offset:1px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Component Cost Estimator</div>
+  <div class="user-info">
+    <a href="/data">Data Manager</a>
+    {% if is_admin %}<a href="/admin">Admin</a>{% endif %}
+    <span>{{ user_name }}</span>
+    <a href="/logout">Sign out</a>
+  </div>
+</header>
+
+
+
+<div class="page">
+<h1>Component Cost Estimator</h1>
+<p class="subtitle">Part cost &amp; tooling cost vs. material volume &mdash; with should-cost model overlay</p>
+
+<div class="card">
+<div class="top-row" id="filterRow"></div>
+<div class="opts-row">
+  <div class="sw"><span class="sw-lbl">Color by</span>
+    <select id="colorBy" onchange="draw()">
+      <option value="process">Process</option>
+      <option value="material_family">Material family</option>
+      <option value="complexity">Complexity</option>
+      <option value="coo">Country of origin</option>
+    </select>
+  </div>
+  <div class="sw"><span class="sw-lbl">Should-cost COO</span>
+    <select id="scCOO" onchange="draw()">
+      <option value="CN">China (CN)</option>
+      <option value="MX">Mexico (MX)</option>
+      <option value="US" selected>USA (US)</option>
+      <option value="IN">India (IN)</option>
+      <option value="TW">Taiwan (TW)</option>
+      <option value="KR">Korea (KR)</option>
+      <option value="DE">Germany (DE)</option>
+    </select>
+  </div>
+  <label class="tog"><input type="checkbox" id="logScale" onchange="draw()" checked> Log scale</label>
+  <label class="tog"><input type="checkbox" id="showSC" onchange="draw()" checked> Should-cost</label>
+  <label class="tog"><input type="checkbox" id="showBand" onchange="draw()" checked> &plusmn;20% band</label>
+  <label class="tog"><input type="checkbox" id="showTool" onchange="draw()" checked> Tooling axis</label>
+  <div class="sw"><span class="sw-lbl">Trendline</span>
+    <select id="trendType" onchange="draw()">
+      <option value="auto">Auto (best fit)</option>
+      <option value="power">Power</option>
+      <option value="linear">Linear</option>
+    </select>
+  </div>
+  <span id="countLbl" style="font-size:12px;color:#73726c;margin-left:auto"></span>
+</div>
+<div class="chart-title-block">
+  <h2>Part Cost &amp; Tooling Cost vs. Material Volume</h2>
+  <p>Circles = part cost (left axis) &middot; Diamonds = tooling cost (right axis) &middot; Solid lines = should-cost model by COO &middot; Dashed lines = data trendlines</p>
+</div>
+<div class="tl-bar">
+  <span>Part trendline: <strong id="tlType">--</strong></span>
+  <span>R&sup2;=<strong id="tlR2">--</strong></span>
+  <span id="tlEq" style="font-size:11px;font-family:monospace;color:#73726c"></span>
+  <span style="margin-left:auto">Part SC <span id="cooTag" class="coo-badge">US</span>: <strong id="scInfo" style="color:#534AB7">--</strong></span>
+  <span style="margin-left:8px">Tool trendline: <strong id="tlToolType">--</strong></span>
+  <span>R&sup2;=<strong id="tlToolR2">--</strong></span>
+  <span>Tool SC: <strong id="scToolInfo" style="color:#0F6E56">--</strong></span>
+</div>
+<div class="quick-est-bar">
+  <span class="sw-lbl">Quick estimate</span>
+  <input type="number" id="quickVol" placeholder="Volume (cm3)" min="0" step="any" onkeydown="if(event.key==='Enter')quickEstimate()">
+  <button class="btn btn-primary" onclick="quickEstimate()" style="padding:5px 12px;font-size:12px">Estimate</button>
+  <button class="btn" onclick="clearQuickEst()" style="padding:5px 10px;font-size:12px">Clear</button>
+  <span id="quickResult" style="font-size:13px;color:#1a1a18;margin-left:8px"></span>
+</div>
+<div class="stats">
+  <div class="stat"><div class="stat-val" id="sCount">--</div><div class="stat-lbl">Part data pts</div></div>
+  <div class="stat"><div class="stat-val" id="sMin">--</div><div class="stat-lbl">Min part cost</div></div>
+  <div class="stat"><div class="stat-val" id="sMax">--</div><div class="stat-lbl">Max part cost</div></div>
+  <div class="stat"><div class="stat-val" id="sTool">--</div><div class="stat-lbl">Tool data pts</div></div>
+</div>
+<div class="chart-area"><canvas id="chart"></canvas></div>
+<div id="legend" class="legend"></div>
+</div>
+
+<div class="panel" id="myPartPanel">
+  <div class="panel-hdr" onclick="togglePanel('myPart')" id="myPartHdr">
+    <div><div class="ph-title">My Part</div>
+    <div class="ph-sub">Enter part details to get a cost estimate and plot it on the chart (temporary)</div></div>
+    <button class="panel-toggle" id="myPartBtn">Show</button>
+  </div>
+  <div class="panel-body" id="myPartBody" style="display:none">
+    <div class="form-grid">
+      <div class="form-field"><label>Description *</label><input type="text" id="f_desc" placeholder="Part description"></div>
+      <div class="form-field"><label>Part number</label><input type="text" id="f_pn" placeholder="e.g. MCPC00999"></div>
+      <div class="form-field"><label>Process *</label>
+        <select id="f_proc" onchange="previewEstimate()">
+          <option value="">-- select --</option>
+          <option>Antenna</option><option>Bus Bar</option><option>Die Cast</option><option>Die Cut</option>
+          <option>Dispensed</option><option>Extrusion</option><option>Fastener</option>
+          <option>Injection Molding</option><option>Label</option><option>PCBA</option>
+          <option>Packaging</option><option>Pallet</option><option>Saw Cut</option>
+          <option>Sheet Metal</option><option>Stamping</option><option>Sub-Assy</option>
+          <option>Thermoform</option>
+        </select>
+      </div>
+      <div class="form-field"><label>Material family *</label>
+        <select id="f_matfam" onchange="previewEstimate()">
+          <option value="">-- select --</option>
+          <option>Aluminum</option><option>Aluminum Nitride</option><option>Cardboard</option>
+          <option>EMI</option><option>Formex</option><option>Insulator</option>
+          <option>Label Stock</option><option>Lumber</option><option>Nickel</option>
+          <option>PBT</option><option>PC</option><option>PCB</option><option>PP</option>
+          <option>Potting</option><option>RTV</option><option>Rubber</option>
+          <option>Stainless Steel</option><option>Steel</option><option>TIM</option><option>Ultem</option>
+        </select>
+      </div>
+      <div class="form-field"><label>Material (specific)</label><input type="text" id="f_mat" placeholder="e.g. AL 5052-H32"></div>
+      <div class="form-field"><label>Country of origin *</label>
+        <select id="f_coo">
+          <option value="">-- select --</option>
+          <option value="CN">China (CN)</option><option value="MX">Mexico (MX)</option>
+          <option value="US">USA (US)</option><option value="IN">India (IN)</option>
+          <option value="TW">Taiwan (TW)</option><option value="KR">Korea (KR)</option>
+          <option value="DE">Germany (DE)</option>
+        </select>
+      </div>
+      <div class="form-field"><label>Complexity *</label>
+        <select id="f_cx" onchange="previewEstimate()">
+          <option value="">-- select --</option>
+          <option value="1">1 -- Low</option><option value="2">2 -- Medium</option><option value="3">3 -- High</option>
+        </select>
+      </div>
+      <div class="form-field"><label>Volume (cm3) *</label><input type="number" id="f_vol" placeholder="e.g. 150.5" min="0" step="any" oninput="previewEstimate()"></div>
+      <div class="form-field"><label>HV part price ($)</label><input type="number" id="f_price" placeholder="e.g. 12.50" min="0" step="any"></div>
+      <div class="form-field"><label>Tool price ($)</label><input type="number" id="f_tool" placeholder="e.g. 8500" min="0" step="any"></div>
+      <div class="form-field"><label>Tool lead time (wks)</label><input type="number" id="f_toollt" placeholder="e.g. 8" min="0" step="1"></div>
+      <div class="form-field"><label>Supplier</label><input type="text" id="f_supplier" placeholder="Supplier name"></div>
+      <div class="form-field"><label>Cost estimate (auto)</label><input type="text" id="f_est" readonly placeholder="Fill required fields"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="plotCustom()">Plot on chart</button>
+      <button class="btn" onclick="clearForm()">Clear form</button>
+      <button class="btn" onclick="clearAllCustom()">Remove plotted parts</button>
+    </div>
+    <div id="estPreview" class="est-preview"></div>
+    <div class="pts-row" id="ptsRow"></div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-hdr" onclick="togglePanel('table')" id="tableHdr">
+    <div><div class="ph-title" id="tableTitle">Data table</div>
+    <div class="ph-sub">All filtered data points</div></div>
+    <button class="panel-toggle" id="tableBtn">Show</button>
+  </div>
+  <div class="panel-body" id="tableBody" style="display:none">
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tabPart" onclick="switchTab('part')">Part cost data</button>
+      <button class="tab-btn" id="tabTool" onclick="switchTab('tool')">Tooling cost data</button>
+    </div>
+    <div class="tbl-wrap"><table class="data-table" id="dataTable"></table></div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-hdr" onclick="togglePanel('sc')" id="scHdr">
+    <div><div class="ph-title">Should-cost model parameters</div>
+    <div class="ph-sub">Adjust machine rates, cycle times, COO multipliers and material prices. Changes take effect on next draw.</div></div>
+    <button class="panel-toggle" id="scBtn">Show</button>
+  </div>
+  <div class="panel-body" id="scBody" style="display:none">
+    <div class="sc-note">These parameters drive the should-cost model. All users can adjust temporarily for what-if scenarios. Admins can save changes as the new baseline for all users.</div>
+    <div class="sc-section">Country of origin -- labor &amp; overhead multipliers (US = 1.0 baseline)</div>
+    <div class="sc-grid" id="cooGrid"></div>
+    <div class="sc-section">Process -- machine rate ($/hr), cycle base (min), time exp, tool base ($), tool vol exp</div>
+    <div class="sc-grid" id="procGrid"></div>
+    <div class="sc-section">Material family -- density (g/cm3), raw material ($/kg), scrap factor</div>
+    <div class="sc-grid" id="matGrid"></div>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <button class="btn" onclick="resetParams();buildParamGrids();draw()">Reset to factory defaults</button>
+      {% if is_admin %}
+      <button class="btn btn-success" onclick="saveBaseline()">Save as new baseline</button>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="footer">Generac R3 BOM Cost Estimator &middot; Should-cost model last calibrated: April 2026</div>
+</div>
+
+<script>
+var PART_DATA = [];
+var TOOL_DATA = [];
+</script>
+<script src="/static/estimator_logic.js"></script>
+<script>
+(async function() {
+  try {
+    const res = await fetch('/api/parts');
+    const json = await res.json();
+    if (!json.parts || json.parts.length === 0) return;
+    PART_DATA = json.parts.filter(p => p.price_hv != null && p.price_hv > 0);
+    TOOL_DATA = json.parts.filter(p => p.tool_price != null && p.tool_price > 0).map(p => ({
+      ...p, tool_lt: p.tool_lt || 0
+    }));
+    activeSelections = {process:[], material_family:[], complexity:[], coo:[], supplier:[]};
+    buildFilters();
+    draw();
+  } catch(e) {}
+})();
+
+(async function() {
+  try {
+    const res = await fetch('/api/params');
+    const json = await res.json();
+    if (json.params) {
+      if (json.params.coo) cooP = json.params.coo;
+      if (json.params.proc) procP = json.params.proc;
+      if (json.params.mat) matP = json.params.mat;
+      buildParamGrids();
+      draw();
+    }
+  } catch(e) {}
+})();
+
+async function saveBaseline() {
+  const data = {coo: cooP, proc: procP, mat: matP};
+  const res = await fetch('/api/params', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)});
+  if (res.ok) alert('Baseline saved. All users will see these values on next load.');
+  else alert('Error saving baseline.');
+}
+</script>
+</body>
+</html>
