@@ -1,6 +1,7 @@
 let allParts = [];
 let sortCol = null;
 let sortDir = 1;
+let filters = {};
 const COLS = [
   {key:'part_number', label:'Part #'},
   {key:'description', label:'Description'},
@@ -48,6 +49,33 @@ function renderHeader() {
     th.textContent = '';
     tr.appendChild(th);
   }
+  renderFilterRow();
+}
+
+function renderFilterRow() {
+  let fr = document.getElementById('filterRow');
+  if (!fr) {
+    fr = document.createElement('tr');
+    fr.id = 'filterRow';
+    document.getElementById('headerRow').parentNode.appendChild(fr);
+  }
+  fr.innerHTML = '';
+  const filterableCols = ['process', 'material_family', 'material', 'coo', 'complexity', 'supplier'];
+  COLS.forEach(col => {
+    const td = document.createElement('th');
+    td.style.padding = '4px';
+    td.style.background = '#fff';
+    if (filterableCols.includes(col.key)) {
+      const vals = [...new Set(allParts.map(p => String(p[col.key] || '')).filter(v => v))].sort();
+      const sel = document.createElement('select');
+      sel.style.cssText = 'width:100%;font-size:11px;padding:2px 4px;border:1px solid rgba(0,0,0,0.15);border-radius:4px';
+      sel.innerHTML = '<option value="">All</option>' + vals.map(v => '<option value="' + v + '"' + (filters[col.key] === v ? ' selected' : '') + '>' + v + '</option>').join('');
+      sel.onchange = () => { if (sel.value) filters[col.key] = sel.value; else delete filters[col.key]; renderTable(); };
+      td.appendChild(sel);
+    }
+    fr.appendChild(td);
+  });
+  if (IS_ADMIN) { fr.appendChild(document.createElement('th')); }
 }
 
 function renderTable() {
@@ -56,6 +84,9 @@ function renderTable() {
   if (search) {
     rows = rows.filter(p => COLS.some(c => String(p[c.key] || '').toLowerCase().includes(search)));
   }
+  Object.keys(filters).forEach(key => {
+    rows = rows.filter(p => String(p[key] || '') === filters[key]);
+  });
   if (sortCol) {
     rows = [...rows].sort((a, b) => {
       let va = a[sortCol], vb = b[sortCol];
