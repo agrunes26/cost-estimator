@@ -73,21 +73,31 @@ def api_import_parts():
         return jsonify({'error': 'File must be .xlsx'}), 400
     try:
         wb = load_workbook(f, data_only=True)
-        ws = wb.active
-        headers = [str(c.value or '').strip().lower() for c in ws[1]]
+        # Try to find 'data source' sheet, fall back to active sheet
+        ws = None
+        for name in wb.sheetnames:
+            if name.lower().strip() in ('data source', 'datasource', 'data'):
+                ws = wb[name]
+                break
+        if ws is None:
+            ws = wb.active
+        headers = [str(c.value or '').strip().lower().replace('', '').replace('
+', '
+') for c in ws[1]]
         col_map = {}
         aliases = {
-            'part_number': ['part_number', 'part number', 'pn', 'part #', 'part no'],
+            'part_number': ['part_number', 'part number', 'pn', 'part #', 'part no', 'generac part number', 'manufacturer part number'],
             'description': ['description', 'desc', 'name'],
             'process': ['process', 'mfg process', 'manufacturing process'],
-            'material_family': ['material_family', 'material family', 'mat family', 'mat_family'],
+            'material_family': ['material_family', 'material family', 'mat family', 'mat_family', 'general material'],
             'material': ['material', 'mat', 'material name'],
-            'complexity': ['complexity', 'cx', 'complex'],
+            'complexity': ['complexity', 'cx', 'complex', 'complexity
+(1=low, 3=high)'],
             'coo': ['coo', 'country', 'country of origin'],
-            'volume_cm3': ['volume_cm3', 'volume', 'vol', 'volume (cm3)', 'vol_cm3'],
-            'price_hv': ['price_hv', 'price', 'hv price', 'unit price', 'cost'],
+            'volume_cm3': ['volume_cm3', 'volume', 'vol', 'volume (cm3)', 'vol_cm3', 'material volume (cm^3)', 'material volume (cm3)'],
+            'price_hv': ['price_hv', 'price', 'hv price', 'unit price', 'cost', 'high volume pricing ($)', 'high volume pricing'],
             'tool_price': ['tool_price', 'tool price', 'tooling', 'tooling cost', 'tool cost'],
-            'tool_lt': ['tool_lt', 'tool lead time', 'tool lt', 'lead time'],
+            'tool_lt': ['tool_lt', 'tool lead time', 'tool lt', 'lead time', 'tool lt (wks)'],
             'supplier': ['supplier', 'vendor', 'supply']
         }
         for field, names in aliases.items():
