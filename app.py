@@ -1,5 +1,6 @@
 import os
 import io
+import traceback
 import json
 import secrets
 from flask import Flask, request, session, jsonify, render_template, send_file
@@ -122,16 +123,28 @@ def api_import_parts():
                 continue
             p = {}
             for field, idx in col_map.items():
-                val = row[idx] if idx < len(row) else None
+                try:
+                    val = row[idx] if idx < len(row) else None
+                except (IndexError, TypeError):
+                    val = None
                 if val is None:
-                    val = '' if field in ('part_number', 'description', 'process', 'material_family', 'material', 'coo', 'supplier') else 0
+                    val = '' if field in ('part_number', 'description', 'process', 'material_family', 'material', 'coo', 'supplier', 'product', 'revision', 'finish') else 0
+                # Ensure numeric fields are actually numeric
+                if field in ('complexity', 'volume_cm3', 'price_hv', 'tool_price', 'tool_lt', 'thickness_mm', 'envelope_x_mm', 'envelope_y_mm', 'envelope_z_mm', 'production_lt'):
+                    try:
+                        val = float(val) if val else 0
+                    except (ValueError, TypeError):
+                        val = 0
                 p[field] = val
             # Combine product columns into one field
             prods = []
             for idx, name in product_cols.items():
-                val = row[idx] if idx < len(row) else None
-                if val and str(val).strip().upper() in ('X', 'YES', '1', 'TRUE'):
-                    prods.append(name)
+                try:
+                    val = row[idx] if idx < len(row) else None
+                    if val and str(val).strip().upper() in ('X', 'YES', '1', 'TRUE'):
+                        prods.append(name)
+                except (IndexError, TypeError):
+                    pass
             if prods:
                 p['product'] = ', '.join(prods)
             if p.get('process') or p.get('part_number') or p.get('description'):
@@ -139,6 +152,7 @@ def api_import_parts():
         count = bulk_insert_parts(parts, session.get('user_email', ''))
         return jsonify({'ok': True, 'imported': count})
     except Exception as e:
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 400
 
 
