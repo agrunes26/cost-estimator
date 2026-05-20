@@ -29,6 +29,14 @@ def init_store_db():
         tool_price REAL,
         tool_lt REAL,
         supplier TEXT,
+        product TEXT,
+        revision TEXT,
+        finish TEXT,
+        thickness_mm REAL,
+        envelope_x_mm REAL,
+        envelope_y_mm REAL,
+        envelope_z_mm REAL,
+        production_lt REAL,
         added_by TEXT,
         updated_at TEXT
     )''')
@@ -54,14 +62,20 @@ def add_part(data, added_by):
     now = datetime.now().isoformat()
     conn.execute('''INSERT INTO parts
         (part_number, description, process, material_family, material,
-         complexity, coo, volume_cm3, price_hv, tool_price, tool_lt, supplier, added_by, updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+         complexity, coo, volume_cm3, price_hv, tool_price, tool_lt, supplier,
+         product, revision, finish, thickness_mm, envelope_x_mm, envelope_y_mm, envelope_z_mm, production_lt,
+         added_by, updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
         (data.get('part_number', ''), data.get('description', ''),
          data.get('process', ''), data.get('material_family', ''),
          data.get('material', ''), data.get('complexity', 1),
          data.get('coo', ''), data.get('volume_cm3', 0),
          data.get('price_hv', 0), data.get('tool_price', 0),
          data.get('tool_lt', 0), data.get('supplier', ''),
+         data.get('product', ''), data.get('revision', ''),
+         data.get('finish', ''), data.get('thickness_mm', 0),
+         data.get('envelope_x_mm', 0), data.get('envelope_y_mm', 0),
+         data.get('envelope_z_mm', 0), data.get('production_lt', 0),
          added_by, now))
     conn.commit()
     conn.close()
@@ -73,7 +87,8 @@ def update_part(part_id, data):
     conn.execute('''UPDATE parts SET
         part_number=?, description=?, process=?, material_family=?, material=?,
         complexity=?, coo=?, volume_cm3=?, price_hv=?, tool_price=?, tool_lt=?,
-        supplier=?, updated_at=?
+        supplier=?, product=?, revision=?, finish=?, thickness_mm=?,
+        envelope_x_mm=?, envelope_y_mm=?, envelope_z_mm=?, production_lt=?, updated_at=?
         WHERE id=?''',
         (data.get('part_number', ''), data.get('description', ''),
          data.get('process', ''), data.get('material_family', ''),
@@ -81,6 +96,10 @@ def update_part(part_id, data):
          data.get('coo', ''), data.get('volume_cm3', 0),
          data.get('price_hv', 0), data.get('tool_price', 0),
          data.get('tool_lt', 0), data.get('supplier', ''),
+         data.get('product', ''), data.get('revision', ''),
+         data.get('finish', ''), data.get('thickness_mm', 0),
+         data.get('envelope_x_mm', 0), data.get('envelope_y_mm', 0),
+         data.get('envelope_z_mm', 0), data.get('production_lt', 0),
          now, part_id))
     conn.commit()
     conn.close()
@@ -100,8 +119,10 @@ def bulk_insert_parts(parts_list, added_by):
         pn = str(p.get('part_number', '')).strip()
         conn.execute('''INSERT INTO parts
             (part_number, description, process, material_family, material,
-             complexity, coo, volume_cm3, price_hv, tool_price, tool_lt, supplier, added_by, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+             complexity, coo, volume_cm3, price_hv, tool_price, tool_lt, supplier,
+             product, revision, finish, thickness_mm, envelope_x_mm, envelope_y_mm, envelope_z_mm, production_lt,
+             added_by, updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
             (pn, p.get('description', ''), p.get('process', ''),
              p.get('material_family', ''), p.get('material', ''),
              p.get('complexity', 1), p.get('coo', ''),
