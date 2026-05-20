@@ -2,6 +2,7 @@ let allParts = [];
 let sortCol = null;
 let sortDir = 1;
 let filters = {};
+let modelParams = null;
 
 const VISIBLE_COLS = [
   {key:'part_number', label:'Part #'},
@@ -23,6 +24,41 @@ const FILTER_COLS = ['part_number','description','product','process','material_f
 
 const PRODUCT_OPTIONS = ['R3', 'R2 INV', 'R2 CAB', 'R2 SDS', 'G1 ACSC', 'G1 MI', 'GB1800'];
 
+const DEF_COO = {CN:{labor:0.58,overhead:0.65},MX:{labor:0.72,overhead:0.78},US:{labor:1.0,overhead:1.0},IN:{labor:0.38,overhead:0.52},TW:{labor:0.68,overhead:0.75},KR:{labor:0.80,overhead:0.82},DE:{labor:1.15,overhead:1.12},ML:{labor:0.55,overhead:0.60}};
+const DEF_PROC = {'Sheet Metal':{machineRate:85,cycleBase:0.8,timeExp:0.38,toolBase:8000,toolExp:0.55},'Injection Molding':{machineRate:65,cycleBase:0.5,timeExp:0.30,toolBase:3500,toolExp:0.60},'Die Cast':{machineRate:110,cycleBase:1.2,timeExp:0.35,toolBase:25000,toolExp:0.70},'Extrusion':{machineRate:70,cycleBase:0.6,timeExp:0.42,toolBase:9000,toolExp:0.45},'Stamping':{machineRate:75,cycleBase:0.3,timeExp:0.28,toolBase:20000,toolExp:0.65},'PCBA':{machineRate:95,cycleBase:2.0,timeExp:0.25,toolBase:0,toolExp:0},'Die Cut':{machineRate:40,cycleBase:0.2,timeExp:0.20,toolBase:500,toolExp:0.25},'Bus Bar':{machineRate:55,cycleBase:0.4,timeExp:0.32,toolBase:1500,toolExp:0.35},'Saw Cut':{machineRate:60,cycleBase:0.5,timeExp:0.22,toolBase:1000,toolExp:0.20},'Thermoform':{machineRate:55,cycleBase:0.6,timeExp:0.30,toolBase:10000,toolExp:0.55},'Dispensed':{machineRate:35,cycleBase:0.3,timeExp:0.45,toolBase:0,toolExp:0},'Fastener':{machineRate:30,cycleBase:0.05,timeExp:0.15,toolBase:1200,toolExp:0.30},'Label':{machineRate:25,cycleBase:0.05,timeExp:0.10,toolBase:200,toolExp:0.05},'Sub-Assy':{machineRate:50,cycleBase:0.8,timeExp:0.20,toolBase:1000,toolExp:0.30},'Antenna':{machineRate:60,cycleBase:1.0,timeExp:0.28,toolBase:2000,toolExp:0.40},'Pallet':{machineRate:40,cycleBase:1.5,timeExp:0.35,toolBase:0,toolExp:0},'Packaging':{machineRate:30,cycleBase:1.0,timeExp:0.30,toolBase:0,toolExp:0}};
+const DEF_MAT = {'Steel':{density:7.85,matPrice:1.20,scrap:1.15},'Aluminum':{density:2.70,matPrice:2.50,scrap:1.12},'Stainless Steel':{density:8.00,matPrice:3.80,scrap:1.18},'Nickel':{density:8.90,matPrice:18.0,scrap:1.20},'PC':{density:1.20,matPrice:3.20,scrap:1.08},'PP':{density:0.91,matPrice:1.60,scrap:1.08},'PBT':{density:1.31,matPrice:4.50,scrap:1.10},'Ultem':{density:1.27,matPrice:28.0,scrap:1.10},'PCB':{density:1.85,matPrice:12.0,scrap:1.20},'Aluminum Nitride':{density:3.26,matPrice:80.0,scrap:1.30},'Rubber':{density:1.15,matPrice:2.80,scrap:1.10},'Formex':{density:1.35,matPrice:8.0,scrap:1.12},'TIM':{density:2.50,matPrice:45.0,scrap:1.05},'EMI':{density:0.80,matPrice:15.0,scrap:1.10},'Insulator':{density:0.15,matPrice:60.0,scrap:1.15},'Cardboard':{density:0.55,matPrice:0.80,scrap:1.05},'Label Stock':{density:0.90,matPrice:4.0,scrap:1.05},'Lumber':{density:0.55,matPrice:0.60,scrap:1.10},'Potting':{density:1.10,matPrice:12.0,scrap:1.05},'RTV':{density:1.05,matPrice:18.0,scrap:1.05}};
+
+let cooP, procP, matP;
+
+function initParams() {
+  cooP = JSON.parse(JSON.stringify(DEF_COO));
+  procP = JSON.parse(JSON.stringify(DEF_PROC));
+  matP = JSON.parse(JSON.stringify(DEF_MAT));
+}
+initParams();
+
+function getSC(vol, proc, matFam, cx, coo) {
+  var cp = cooP[coo] || cooP['US'];
+  var pp = procP[proc] || {machineRate:60, cycleBase:0.5, timeExp:0.30};
+  var mp = matP[matFam] || {density:2.0, matPrice:5.0, scrap:1.10};
+  var matCost = vol * (mp.density / 1000) * mp.matPrice * mp.scrap;
+  var cxM = 1 + Math.max(0, (cx - 1)) * 0.25;
+  var cycleMin = pp.cycleBase * Math.pow(Math.max(vol, 0.001), pp.timeExp) * cxM;
+  var procCost = (pp.machineRate / 60) * cycleMin * cp.labor;
+  var oh = (matCost + procCost) * cp.overhead * 0.20;
+  return matCost + procCost + oh;
+}
+
+function getToolSC(vol, proc, cx, coo) {
+  var cp = cooP[coo] || cooP['US'];
+  var pp = procP[proc] || {toolBase:2000, toolExp:0.40};
+  var tb = pp.toolBase || 0;
+  if (!tb) return null;
+  var cxM = 1 + Math.max(0, (cx - 1)) * 0.35;
+  var base = tb * Math.pow(Math.max(vol, 0.001), pp.toolExp) * cxM;
+  return base * cp.labor * 0.7 + base * 0.3;
+}
+
 function showMsg(text, type) {
   var el = document.getElementById('msg');
   el.textContent = text;
@@ -34,6 +70,13 @@ async function loadData() {
   var res = await fetch('/api/parts');
   var json = await res.json();
   allParts = json.parts || [];
+  var pRes = await fetch('/api/params');
+  var pJson = await pRes.json();
+  if (pJson.params) {
+    if (pJson.params.coo) cooP = pJson.params.coo;
+    if (pJson.params.proc) procP = pJson.params.proc;
+    if (pJson.params.mat) matP = pJson.params.mat;
+  }
   renderHeader();
   renderTable();
 }
@@ -150,8 +193,10 @@ function renderFilterRow() {
   if (IS_ADMIN) { fr.appendChild(document.createElement('th')); }
 }
 
-document.addEventListener('click', function() {
-  document.querySelectorAll('.filter-dropdown').forEach(function(d) { d.style.display = 'none'; });
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.filter-wrap')) {
+    document.querySelectorAll('.filter-dropdown').forEach(function(d) { d.style.display = 'none'; });
+  }
 });
 
 function renderTable() {
@@ -181,6 +226,11 @@ function renderTable() {
   tbody.innerHTML = '';
   rows.forEach(function(p) {
     var tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    tr.onclick = function(e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+      openSidePanel(p);
+    };
     VISIBLE_COLS.forEach(function(col) {
       var td = document.createElement('td');
       var val = p[col.key];
@@ -190,7 +240,7 @@ function renderTable() {
       td.textContent = val;
       if (IS_ADMIN) {
         td.className = 'editable';
-        td.ondblclick = function() { startEdit(td, p, col.key); };
+        td.ondblclick = function(e) { e.stopPropagation(); startEdit(td, p, col.key); };
       }
       tr.appendChild(td);
     });
@@ -200,13 +250,135 @@ function renderTable() {
       btn.className = 'del-btn';
       btn.textContent = '✕';
       btn.title = 'Delete';
-      btn.onclick = function() { deletePart(p.id); };
+      btn.onclick = function(e) { e.stopPropagation(); deletePart(p.id); };
       td.appendChild(btn);
       tr.appendChild(td);
     }
     tbody.appendChild(tr);
   });
   document.getElementById('rowCount').textContent = rows.length + ' of ' + allParts.length + ' rows';
+}
+
+function openSidePanel(part) {
+  var panel = document.getElementById('sidePanel');
+  var content = document.getElementById('sidePanelContent');
+  var duplicates = findDuplicates(part);
+  var sc = null;
+  var toolSc = null;
+  if (part.volume_cm3 > 0 && part.process && part.material_family && part.complexity && part.coo) {
+    sc = getSC(part.volume_cm3, part.process, part.material_family, part.complexity, part.coo);
+  }
+  if (part.volume_cm3 > 0 && part.process && part.complexity && part.coo) {
+    toolSc = getToolSC(part.volume_cm3, part.process, part.complexity, part.coo);
+  }
+
+  var html = '<div class="sp-header">';
+  html += '<h3>' + (part.description || 'Unnamed Part') + '</h3>';
+  html += '<button class="sp-close" onclick="closeSidePanel()">✕</button>';
+  html += '</div>';
+
+  html += '<div class="sp-section">';
+  html += '<h4>Part Details</h4>';
+  html += '<div class="sp-grid">';
+  html += spField('Part #', part.part_number);
+  html += spField('Description', part.description);
+  html += spField('Product', part.product);
+  html += spField('Process', part.process);
+  html += spField('Material Family', part.material_family);
+  html += spField('Material', part.material);
+  html += spField('Complexity', part.complexity);
+  html += spField('COO', part.coo);
+  html += spField('Volume (cm3)', fmt(part.volume_cm3));
+  html += spField('Revision', part.revision);
+  html += spField('Finish', part.finish);
+  html += spField('Thickness (mm)', fmt(part.thickness_mm));
+  html += spField('Envelope X (mm)', fmt(part.envelope_x_mm));
+  html += spField('Envelope Y (mm)', fmt(part.envelope_y_mm));
+  html += spField('Envelope Z (mm)', fmt(part.envelope_z_mm));
+  html += spField('Production LT (wks)', fmt(part.production_lt));
+  html += '</div></div>';
+
+  html += '<div class="sp-section">';
+  html += '<h4>Should-Cost Estimate</h4>';
+  if (sc !== null && isFinite(sc) && sc > 0) {
+    html += '<div class="sp-sc">';
+    html += '<div class="sp-sc-row"><span class="sp-sc-label">Part Should-Cost:</span><span class="sp-sc-val">$' + sc.toFixed(2) + '</span></div>';
+    if (part.price_hv > 0) {
+      var diff = ((part.price_hv - sc) / sc * 100);
+      var color = diff > 20 ? '#dc2626' : diff < -20 ? '#1D9E75' : '#1a1a18';
+      html += '<div class="sp-sc-row"><span class="sp-sc-label">Actual HV Price:</span><span class="sp-sc-val">$' + part.price_hv.toFixed(2) + '</span></div>';
+      html += '<div class="sp-sc-row"><span class="sp-sc-label">vs Should-Cost:</span><span class="sp-sc-val" style="color:' + color + '">' + (diff > 0 ? '+' : '') + diff.toFixed(1) + '%</span></div>';
+    }
+    if (toolSc !== null && isFinite(toolSc) && toolSc > 0) {
+      html += '<div class="sp-sc-row"><span class="sp-sc-label">Tool Should-Cost:</span><span class="sp-sc-val">$' + toolSc.toFixed(0) + '</span></div>';
+      if (part.tool_price > 0) {
+        var tDiff = ((part.tool_price - toolSc) / toolSc * 100);
+        var tColor = tDiff > 20 ? '#dc2626' : tDiff < -20 ? '#1D9E75' : '#1a1a18';
+        html += '<div class="sp-sc-row"><span class="sp-sc-label">Actual Tool Price:</span><span class="sp-sc-val">$' + part.tool_price.toFixed(0) + '</span></div>';
+        html += '<div class="sp-sc-row"><span class="sp-sc-label">vs Tool SC:</span><span class="sp-sc-val" style="color:' + tColor + '">' + (tDiff > 0 ? '+' : '') + tDiff.toFixed(1) + '%</span></div>';
+      }
+    }
+    html += '</div>';
+  } else {
+    html += '<p class="sp-muted">Not enough data to calculate (needs volume, process, material family, complexity, COO)</p>';
+  }
+  html += '</div>';
+
+  html += '<div class="sp-section">';
+  html += '<h4>Supplier Quotes' + (duplicates.length > 1 ? ' (' + duplicates.length + ' quotes found)' : '') + '</h4>';
+  if (duplicates.length > 1) {
+    html += '<table class="sp-table"><thead><tr><th>Supplier</th><th>COO</th><th>Price HV</th><th>Tool $</th><th>Tool LT</th></tr></thead><tbody>';
+    duplicates.forEach(function(d) {
+      var isThis = d.id === part.id;
+      html += '<tr' + (isThis ? ' style="background:#EDF5FF;font-weight:600"' : '') + '>';
+      html += '<td>' + (d.supplier || '--') + '</td>';
+      html += '<td>' + (d.coo || '--') + '</td>';
+      html += '<td>' + (d.price_hv > 0 ? '$' + d.price_hv.toFixed(2) : '--') + '</td>';
+      html += '<td>' + (d.tool_price > 0 ? '$' + d.tool_price.toFixed(0) : '--') + '</td>';
+      html += '<td>' + (d.tool_lt > 0 ? d.tool_lt + ' wks' : '--') + '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+  } else {
+    html += '<table class="sp-table"><thead><tr><th>Supplier</th><th>COO</th><th>Price HV</th><th>Tool $</th><th>Tool LT</th></tr></thead><tbody>';
+    html += '<tr><td>' + (part.supplier || '--') + '</td><td>' + (part.coo || '--') + '</td><td>' + (part.price_hv > 0 ? '$' + part.price_hv.toFixed(2) : '--') + '</td><td>' + (part.tool_price > 0 ? '$' + part.tool_price.toFixed(0) : '--') + '</td><td>' + (part.tool_lt > 0 ? part.tool_lt + ' wks' : '--') + '</td></tr>';
+    html += '</tbody></table>';
+    html += '<p class="sp-muted">No additional quotes found for this part.</p>';
+  }
+  html += '</div>';
+
+  content.innerHTML = html;
+  panel.classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closeSidePanel() {
+  document.getElementById('sidePanel').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+}
+
+function findDuplicates(part) {
+  var pn = String(part.part_number || '').trim().toLowerCase();
+  var desc = String(part.description || '').trim().toLowerCase();
+  if (!pn && !desc) return [part];
+  var matches = allParts.filter(function(p) {
+    if (pn && String(p.part_number || '').trim().toLowerCase() === pn) return true;
+    if (!pn && desc && String(p.description || '').trim().toLowerCase() === desc) return true;
+    return false;
+  });
+  if (matches.length <= 1) return [part];
+  return matches;
+}
+
+function spField(label, value) {
+  var display = (value === null || value === undefined || value === '' || value === 0) ? '--' : value;
+  return '<div class="sp-field"><span class="sp-field-label">' + label + '</span><span class="sp-field-value">' + display + '</span></div>';
+}
+
+function fmt(val) {
+  if (val === null || val === undefined || val === 0) return '';
+  if (typeof val === 'number') return val.toFixed(2);
+  return val;
 }
 
 function sortBy(col) {
