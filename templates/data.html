@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Data Manager — Cost Estimator</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f2;color:#1a1a18;min-height:100vh}
+header{background:#fff;border-bottom:1px solid #e5e7eb;padding:14px 32px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-size:1.3rem;font-weight:700;color:#1a56db}
+.user-info{font-size:.85rem;color:#6b7280;display:flex;align-items:center;gap:16px}
+.user-info a{color:#6b7280;text-decoration:none}
+.user-info a:hover{color:#111}
+.page{max-width:1400px;margin:0 auto;padding:20px 28px}
+h1{font-size:22px;font-weight:600;margin-bottom:4px}
+.subtitle{font-size:13px;color:#73726c;margin-bottom:18px}
+.card{background:#fff;border:0.5px solid rgba(0,0,0,0.11);border-radius:12px;padding:20px;margin-bottom:16px}
+.card h2{font-size:16px;font-weight:600;margin-bottom:12px}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:12px}
+.form-field label{display:block;font-size:11px;font-weight:600;color:#73726c;margin-bottom:3px;text-transform:uppercase}
+.form-field input,.form-field select{width:100%;padding:7px 10px;font-size:13px;border:0.5px solid rgba(0,0,0,0.18);border-radius:8px;background:#fff;color:#1a1a18}
+.btn{font-size:13px;padding:7px 16px;border:0.5px solid rgba(0,0,0,0.2);border-radius:8px;background:#fff;color:#1a1a18;cursor:pointer;font-weight:500}
+.btn:hover{background:#f5f5f2}
+.btn-primary{background:#378ADD;color:#fff;border-color:#378ADD}
+.btn-primary:hover{background:#2a6fb8}
+.btn-success{background:#1D9E75;color:#fff;border-color:#1D9E75}
+.btn-success:hover{background:#177A5B}
+.btn-danger{background:#fff;color:#dc2626;border:1px solid #dc2626}
+.btn-danger:hover{background:#fef2f2}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.toolbar input[type=text]{padding:7px 12px;font-size:13px;border:0.5px solid rgba(0,0,0,0.18);border-radius:8px;width:250px}
+.toolbar input[type=file]{display:none}
+.count{font-size:12px;color:#73726c;margin-left:auto}
+.tbl-wrap{overflow-x:auto;max-height:600px;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:8px;font-size:11px;font-weight:600;color:#73726c;text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid rgba(0,0,0,0.1);white-space:nowrap;cursor:pointer;user-select:none;background:#f5f5f2;position:sticky;top:0}
+th:hover{background:#e8e8e5}
+th .sort-arrow{margin-left:3px;font-size:10px}
+td{padding:6px 8px;border-bottom:1px solid rgba(0,0,0,0.05)}
+tr:hover td{background:#f9f9f7}
+td.editable{cursor:pointer}
+td.editable:hover{background:#EDF5FF}
+td input{width:100%;padding:3px 6px;font-size:12px;border:1px solid #378ADD;border-radius:4px;outline:none}
+.del-btn{color:#dc2626;cursor:pointer;font-size:11px;border:none;background:none;padding:2px 6px}
+.del-btn:hover{background:#fef2f2;border-radius:4px}
+.footer{text-align:center;padding:20px;font-size:11px;color:#73726c}
+.msg{padding:10px 16px;border-radius:8px;margin-bottom:12px;font-size:13px;display:none}
+.msg.success{display:block;background:#f0fdf4;color:#166534;border:1px solid #86efac}
+.msg.error{display:block;background:#fef2f2;color:#dc2626;border:1px solid #fca5a5}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Component Cost Estimator</div>
+  <div class="user-info">
+    <a href="/">Estimator</a>
+    {% if is_admin %}<a href="/admin">Admin</a>{% endif %}
+    <span>{{ user_name }}</span>
+    <a href="/logout">Sign out</a>
+  </div>
+</header>
+
+<div class="page">
+<h1>Data Manager</h1>
+<p class="subtitle">View, search, and export component data.{% if is_admin %} Admins can add, edit, delete, and import.{% endif %}</p>
+
+<div id="msg" class="msg"></div>
+
+{% if is_admin %}
+<div class="card">
+  <h2>Add Component</h2>
+  <div class="form-grid">
+    <div class="form-field"><label>Part Number</label><input type="text" id="add_pn"></div>
+    <div class="form-field"><label>Description</label><input type="text" id="add_desc"></div>
+    <div class="form-field"><label>Process *</label>
+      <select id="add_proc">
+        <option value="">-- select --</option>
+        <option>Antenna</option><option>Bus Bar</option><option>Die Cast</option><option>Die Cut</option>
+        <option>Dispensed</option><option>Extrusion</option><option>Fastener</option>
+        <option>Injection Molding</option><option>Label</option><option>PCBA</option>
+        <option>Packaging</option><option>Pallet</option><option>Saw Cut</option>
+        <option>Sheet Metal</option><option>Stamping</option><option>Sub-Assy</option>
+        <option>Thermoform</option>
+      </select>
+    </div>
+    <div class="form-field"><label>Material Family *</label>
+      <select id="add_matfam">
+        <option value="">-- select --</option>
+        <option>Aluminum</option><option>Aluminum Nitride</option><option>Cardboard</option>
+        <option>EMI</option><option>Formex</option><option>Insulator</option>
+        <option>Label Stock</option><option>Lumber</option><option>Nickel</option>
+        <option>PBT</option><option>PC</option><option>PCB</option><option>PP</option>
+        <option>Potting</option><option>RTV</option><option>Rubber</option>
+        <option>Stainless Steel</option><option>Steel</option><option>TIM</option><option>Ultem</option>
+      </select>
+    </div>
+    <div class="form-field"><label>Material</label><input type="text" id="add_mat"></div>
+    <div class="form-field"><label>Complexity *</label>
+      <select id="add_cx"><option value="">--</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select>
+    </div>
+    <div class="form-field"><label>COO *</label>
+      <select id="add_coo"><option value="">--</option><option value="CN">CN</option><option value="MX">MX</option><option value="US">US</option><option value="IN">IN</option><option value="TW">TW</option><option value="KR">KR</option><option value="DE">DE</option></select>
+    </div>
+    <div class="form-field"><label>Volume (cm3) *</label><input type="number" id="add_vol" min="0" step="any"></div>
+    <div class="form-field"><label>Price HV ($)</label><input type="number" id="add_price" min="0" step="any"></div>
+    <div class="form-field"><label>Tool Price ($)</label><input type="number" id="add_tool" min="0" step="any"></div>
+    <div class="form-field"><label>Tool LT (wks)</label><input type="number" id="add_toollt" min="0" step="1"></div>
+    <div class="form-field"><label>Supplier</label><input type="text" id="add_supplier"></div>
+  </div>
+  <button class="btn btn-success" onclick="addComponent()">+ Add to database</button>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="toolbar">
+    <input type="text" id="searchBox" placeholder="Search all columns..." oninput="filterTable()">
+    <a href="/api/parts/export" class="btn">Export Excel</a>
+    {% if is_admin %}
+    <button class="btn btn-primary" onclick="document.getElementById('importFile').click()">Import Excel</button>
+    <input type="file" id="importFile" accept=".xlsx,.xls" onchange="importExcel(this)">
+    {% endif %}
+    <span class="count" id="rowCount"></span>
+  </div>
+  <div class="tbl-wrap">
+    <table id="dataTable">
+      <thead><tr id="headerRow"></tr></thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer">Component Cost Estimator</div>
+</div>
+
+<script src="/static/data_manager.js"></script>
+<script>
+const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+loadData();
+</script>
+</body>
+</html>
