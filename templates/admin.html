@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin — Cost Estimator</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f2;color:#1a1a18;padding:20px}
+.header{display:flex;align-items:center;gap:16px;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid rgba(0,0,0,0.08)}
+.header h1{font-size:20px;flex:1}
+.header a{font-size:13px;color:#378ADD;text-decoration:none}
+.section{background:#fff;border-radius:12px;padding:20px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+.section h2{font-size:16px;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px;color:#73726c;font-weight:600;border-bottom:1px solid rgba(0,0,0,0.1);font-size:11px;text-transform:uppercase}
+td{padding:8px;border-bottom:1px solid rgba(0,0,0,0.05)}
+.badge{font-size:11px;background:#E8F8F2;color:#1D9E75;padding:2px 8px;border-radius:10px;font-weight:600}
+.form-row{display:flex;gap:8px;margin-top:12px}
+.form-row input{flex:1;padding:8px 12px;border:1px solid rgba(0,0,0,0.15);border-radius:8px;font-size:13px}
+.btn{padding:8px 16px;background:#378ADD;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+.btn:hover{background:#2a6fb8}
+.btn-danger{background:#fff;color:#dc2626;border:1px solid #dc2626}
+.btn-danger:hover{background:#fef2f2}
+.invite-link{font-size:12px;color:#73726c;word-break:break-all;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Admin Panel</h1>
+  <a href="/">← Estimator</a>
+  <a href="/data">Data</a>
+  <span style="font-size:13px;color:#73726c">{{ user_name }}</span>
+  <a href="/logout">Sign out</a>
+</div>
+
+<div class="section">
+  <h2>Invite User</h2>
+  <form method="POST" action="/admin/invite" class="form-row">
+    <input type="email" name="email" placeholder="user@company.com" required>
+    <button class="btn" type="submit">Send Invite</button>
+  </form>
+</div>
+
+<div class="section">
+  <h2>Users</h2>
+  <table>
+    <tr><th>Email</th><th>Name</th><th>Added By</th><th>Last Login</th><th>Role</th><th></th></tr>
+    {% for u in users %}
+    <tr>
+      <td>{{ u.email }}</td>
+      <td>{{ u.name or '—' }}</td>
+      <td>{{ u.added_by or '—' }}</td>
+      <td>{{ u.last_login[:10] if u.last_login else 'Never' }}</td>
+      <td>{% if u.email in admin_emails %}<span class="badge">Admin</span>{% else %}User{% endif %}</td>
+      <td>
+        {% if u.email not in admin_emails %}
+        <form method="POST" action="/admin/remove" style="display:inline">
+          <input type="hidden" name="email" value="{{ u.email }}">
+          <button class="btn btn-danger" onclick="return confirm('Remove this user?')">Remove</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+{% if invites %}
+<div class="section">
+  <h2>Pending Invites</h2>
+  <table>
+    <tr><th>Email</th><th>Created</th><th>Expires</th><th>Link</th></tr>
+    {% for inv in invites %}
+    <tr>
+      <td>{{ inv.email }}</td>
+      <td>{{ inv.created_at[:10] if inv.created_at else '' }}</td>
+      <td>{{ inv.expires_at[:10] if inv.expires_at else '' }}</td>
+      <td class="invite-link">/invite/{{ inv.token }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+</body>
+</html>
