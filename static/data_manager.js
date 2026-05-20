@@ -2,7 +2,8 @@ let allParts = [];
 let sortCol = null;
 let sortDir = 1;
 let filters = {};
-const COLS = [
+
+const VISIBLE_COLS = [
   {key:'part_number', label:'Part #'},
   {key:'description', label:'Description'},
   {key:'product', label:'Product'},
@@ -14,16 +15,11 @@ const COLS = [
   {key:'volume_cm3', label:'Vol (cm3)'},
   {key:'price_hv', label:'Price HV ($)'},
   {key:'tool_price', label:'Tool ($)'},
-  {key:'tool_lt', label:'Tool LT'},
   {key:'supplier', label:'Supplier'},
-  {key:'revision', label:'Rev'},
-  {key:'finish', label:'Finish'},
-  {key:'thickness_mm', label:'Thk (mm)'},
-  {key:'envelope_x_mm', label:'X (mm)'},
-  {key:'envelope_y_mm', label:'Y (mm)'},
-  {key:'envelope_z_mm', label:'Z (mm)'},
-  {key:'production_lt', label:'Prod LT'}
+  {key:'finish', label:'Finish'}
 ];
+
+const FILTER_COLS = ['part_number','description','product','process','material_family','material','complexity','coo','supplier','finish'];
 
 function showMsg(text, type) {
   const el = document.getElementById('msg');
@@ -43,7 +39,7 @@ async function loadData() {
 function renderHeader() {
   const tr = document.getElementById('headerRow');
   tr.innerHTML = '';
-  COLS.forEach(col => {
+  VISIBLE_COLS.forEach(col => {
     const th = document.createElement('th');
     th.textContent = col.label;
     th.onclick = () => sortBy(col.key);
@@ -68,64 +64,104 @@ function renderFilterRow() {
     document.getElementById('headerRow').parentNode.appendChild(fr);
   }
   fr.innerHTML = '';
-  const filterableCols = ['part_number', 'description', 'product', 'process', 'material_family', 'material', 'complexity', 'coo', 'supplier', 'revision', 'finish'];
-  COLS.forEach(col => {
+  VISIBLE_COLS.forEach(col => {
     const td = document.createElement('th');
-    td.style.padding = '4px';
-    td.style.background = '#fff';
-    if (filterableCols.includes(col.key)) {
+    td.className = 'filter-cell';
+    if (FILTER_COLS.includes(col.key)) {
       const vals = [...new Set(allParts.map(p => String(p[col.key] || '')).filter(v => v))].sort();
-      const sel = document.createElement('select');
-      sel.style.cssText = 'width:100%;font-size:11px;padding:2px 4px;border:1px solid rgba(0,0,0,0.15);border-radius:4px';
-      sel.innerHTML = '<option value="">All</option>' + vals.map(v => '<option value="' + v + '"' + (filters[col.key] === v ? ' selected' : '') + '>' + v + '</option>').join('');
-      sel.onchange = () => { if (sel.value) filters[col.key] = sel.value; else delete filters[col.key]; renderTable(); };
-      td.appendChild(sel);
+      const wrapper = document.createElement('div');
+      wrapper.className = 'filter-wrap';
+      const btn = document.createElement('button');
+      btn.className = 'filter-btn';
+      const active = filters[col.key] && filters[col.key].length > 0;
+      btn.textContent = active ? filters[col.key].length + ' selected' : 'All';
+      if (active) btn.classList.add('active');
+      const dropdown = document.createElement('div');
+      dropdown.className = 'filter-dropdown';
+      dropdown.style.display = 'none';
+      const clearBtn = document.createElement('div');
+      clearBtn.className = 'filter-clear';
+      clearBtn.textContent = 'Clear all';
+      clearBtn.onclick = function(e) { e.stopPropagation(); delete filters[col.key]; renderHeader(); renderTable(); };
+      dropdown.appendChild(clearBtn);
+      vals.forEach(v => {
+        const lbl = document.createElement('label');
+        lbl.className = 'filter-option';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = v;
+        if (filters[col.key] && filters[col.key].includes(v)) cb.checked = true;
+        cb.onchange = function() {
+          if (!filters[col.key]) filters[col.key] = [];
+          if (cb.checked) { filters[col.key].push(v); }
+          else { filters[col.key] = filters[col.key].filter(function(x) { return x !== v; }); if (filters[col.key].length === 0) delete filters[col.key]; }
+          var active2 = filters[col.key] && filters[col.key].length > 0;
+          btn.textContent = active2 ? filters[col.key].length + ' selected' : 'All';
+          if (active2) btn.classList.add('active'); else btn.classList.remove('active');
+          renderTable();
+        };
+        lbl.appendChild(cb);
+        lbl.appendChild(document.createTextNode(' ' + v));
+        dropdown.appendChild(lbl);
+      });
+      btn.onclick = function(e) {
+        e.stopPropagation();
+        document.querySelectorAll('.filter-dropdown').forEach(function(d) { if (d !== dropdown) d.style.display = 'none'; });
+        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+      };
+      wrapper.appendChild(btn);
+      wrapper.appendChild(dropdown);
+      td.appendChild(wrapper);
     }
     fr.appendChild(td);
   });
   if (IS_ADMIN) { fr.appendChild(document.createElement('th')); }
 }
 
+document.addEventListener('click', function() {
+  document.querySelectorAll('.filter-dropdown').forEach(function(d) { d.style.display = 'none'; });
+});
+
 function renderTable() {
-  const search = (document.getElementById('searchBox').value || '').toLowerCase();
-  let rows = allParts;
+  var search = (document.getElementById('searchBox').value || '').toLowerCase();
+  var rows = allParts;
   if (search) {
-    rows = rows.filter(p => COLS.some(c => String(p[c.key] || '').toLowerCase().includes(search)));
+    rows = rows.filter(function(p) { return VISIBLE_COLS.some(function(c) { return String(p[c.key] || '').toLowerCase().includes(search); }); });
   }
-  Object.keys(filters).forEach(key => {
-    rows = rows.filter(p => String(p[key] || '') === filters[key]);
+  Object.keys(filters).forEach(function(key) {
+    rows = rows.filter(function(p) { return filters[key].includes(String(p[key] || '')); });
   });
   if (sortCol) {
-    rows = [...rows].sort((a, b) => {
-      let va = a[sortCol], vb = b[sortCol];
+    rows = rows.slice().sort(function(a, b) {
+      var va = a[sortCol], vb = b[sortCol];
       if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * sortDir;
       return String(va || '').localeCompare(String(vb || '')) * sortDir;
     });
   }
-  const tbody = document.getElementById('tableBody');
+  var tbody = document.getElementById('tableBody');
   tbody.innerHTML = '';
-  rows.forEach(p => {
-    const tr = document.createElement('tr');
-    COLS.forEach(col => {
-      const td = document.createElement('td');
-      let val = p[col.key];
+  rows.forEach(function(p) {
+    var tr = document.createElement('tr');
+    VISIBLE_COLS.forEach(function(col) {
+      var td = document.createElement('td');
+      var val = p[col.key];
       if (val === null || val === undefined) val = '';
       if (typeof val === 'number' && col.key.includes('price')) val = val.toFixed(2);
       else if (typeof val === 'number' && col.key === 'volume_cm3') val = val.toFixed(2);
       td.textContent = val;
       if (IS_ADMIN) {
         td.className = 'editable';
-        td.ondblclick = () => startEdit(td, p, col.key);
+        td.ondblclick = function() { startEdit(td, p, col.key); };
       }
       tr.appendChild(td);
     });
     if (IS_ADMIN) {
-      const td = document.createElement('td');
-      const btn = document.createElement('button');
+      var td = document.createElement('td');
+      var btn = document.createElement('button');
       btn.className = 'del-btn';
       btn.textContent = '✕';
       btn.title = 'Delete';
-      btn.onclick = () => deletePart(p.id);
+      btn.onclick = function() { deletePart(p.id); };
       td.appendChild(btn);
       tr.appendChild(td);
     }
@@ -145,22 +181,22 @@ function filterTable() { renderTable(); }
 
 function startEdit(td, part, key) {
   if (td.querySelector('input')) return;
-  const oldVal = part[key] || '';
-  const input = document.createElement('input');
+  var oldVal = part[key] || '';
+  var input = document.createElement('input');
   input.value = oldVal;
-  input.onblur = () => finishEdit(td, part, key, input.value);
-  input.onkeydown = (e) => { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') { td.textContent = oldVal; } };
+  input.onblur = function() { finishEdit(td, part, key, input.value); };
+  input.onkeydown = function(e) { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') { td.textContent = oldVal; } };
   td.textContent = '';
   td.appendChild(input);
   input.focus();
 }
 
 async function finishEdit(td, part, key, newVal) {
-  const numFields = ['complexity', 'volume_cm3', 'price_hv', 'tool_price', 'tool_lt'];
+  var numFields = ['complexity', 'volume_cm3', 'price_hv', 'tool_price', 'tool_lt', 'thickness_mm', 'envelope_x_mm', 'envelope_y_mm', 'envelope_z_mm', 'production_lt'];
   if (numFields.includes(key)) newVal = parseFloat(newVal) || 0;
   if (newVal === part[key]) { td.textContent = part[key] || ''; return; }
   part[key] = newVal;
-  const res = await fetch('/api/parts/' + part.id, {
+  var res = await fetch('/api/parts/' + part.id, {
     method: 'PUT',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(part)
@@ -175,9 +211,9 @@ async function finishEdit(td, part, key, newVal) {
 
 async function deletePart(id) {
   if (!confirm('Delete this part permanently?')) return;
-  const res = await fetch('/api/parts/' + id, {method: 'DELETE'});
+  var res = await fetch('/api/parts/' + id, {method: 'DELETE'});
   if (res.ok) {
-    allParts = allParts.filter(p => p.id !== id);
+    allParts = allParts.filter(function(p) { return p.id !== id; });
     renderTable();
     showMsg('Deleted', 'success');
   } else {
@@ -186,9 +222,10 @@ async function deletePart(id) {
 }
 
 async function addComponent() {
-  const data = {
+  var data = {
     part_number: document.getElementById('add_pn').value.trim(),
     description: document.getElementById('add_desc').value.trim(),
+    product: document.getElementById('add_product').value.trim(),
     process: document.getElementById('add_proc').value,
     material_family: document.getElementById('add_matfam').value,
     material: document.getElementById('add_mat').value.trim(),
@@ -198,20 +235,27 @@ async function addComponent() {
     price_hv: parseFloat(document.getElementById('add_price').value) || 0,
     tool_price: parseFloat(document.getElementById('add_tool').value) || 0,
     tool_lt: parseFloat(document.getElementById('add_toollt').value) || 0,
-    supplier: document.getElementById('add_supplier').value.trim()
+    supplier: document.getElementById('add_supplier').value.trim(),
+    revision: document.getElementById('add_rev').value.trim(),
+    finish: document.getElementById('add_finish').value.trim(),
+    thickness_mm: parseFloat(document.getElementById('add_thk').value) || 0,
+    envelope_x_mm: parseFloat(document.getElementById('add_x').value) || 0,
+    envelope_y_mm: parseFloat(document.getElementById('add_y').value) || 0,
+    envelope_z_mm: parseFloat(document.getElementById('add_z').value) || 0,
+    production_lt: parseFloat(document.getElementById('add_prodlt').value) || 0
   };
   if (!data.process || !data.material_family || !data.coo || !data.complexity || !data.volume_cm3) {
     showMsg('Fill all required fields (Process, Material Family, COO, Complexity, Volume)', 'error');
     return;
   }
-  const res = await fetch('/api/parts', {
+  var res = await fetch('/api/parts', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(data)
   });
   if (res.ok) {
     showMsg('Component added', 'success');
-    document.querySelectorAll('.card:first-of-type input, .card:first-of-type select').forEach(el => {
+    document.querySelectorAll('.card:first-of-type input, .card:first-of-type select').forEach(function(el) {
       if (el.type === 'text' || el.type === 'number') el.value = '';
       else if (el.tagName === 'SELECT') el.selectedIndex = 0;
     });
@@ -222,13 +266,13 @@ async function addComponent() {
 }
 
 async function importExcel(input) {
-  const file = input.files[0];
+  var file = input.files[0];
   if (!file) return;
-  const formData = new FormData();
+  var formData = new FormData();
   formData.append('file', file);
   showMsg('Importing...', 'success');
-  const res = await fetch('/api/parts/import', {method: 'POST', body: formData});
-  const json = await res.json();
+  var res = await fetch('/api/parts/import', {method: 'POST', body: formData});
+  var json = await res.json();
   if (res.ok) {
     showMsg('Imported ' + json.imported + ' parts', 'success');
     loadData();
