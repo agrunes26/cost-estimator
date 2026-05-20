@@ -44,7 +44,7 @@ def init_auth_db():
     if row and not row[0]:
         from werkzeug.security import generate_password_hash
         c.execute('UPDATE users SET password_hash=?, name=? WHERE email=?',
-                  (generate_password_hash('Generac2026'), 'Admin', ADMIN_EMAIL.lower()))
+                  (generate_password_hash('Generac2026'), 'Andy Grunes', ADMIN_EMAIL.lower()))
     conn.commit()
     conn.close()
 
@@ -82,6 +82,8 @@ def register_auth_routes(app):
         password = request.form.get('password', '').strip()
         if not email or not password:
             return render_template('login.html', error='Email and password required')
+        if not email.endswith('@generac.com'):
+            return render_template('login.html', error='Only @generac.com email addresses are allowed')
         conn = get_auth_db()
         user = conn.execute('SELECT * FROM users WHERE email=?', (email,)).fetchone()
         conn.close()
@@ -146,6 +148,8 @@ def register_auth_routes(app):
     def create_invite():
         email = request.form.get('email', '').strip().lower()
         if not email:
+            return redirect('/admin')
+        if not email.endswith('@generac.com'):
             return redirect('/admin')
         conn = get_auth_db()
         conn.execute('INSERT OR IGNORE INTO users (email, added_by, added_at) VALUES (?,?,?)',
