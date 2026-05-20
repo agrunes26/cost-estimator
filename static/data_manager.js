@@ -263,14 +263,7 @@ function openSidePanel(part) {
   var panel = document.getElementById('sidePanel');
   var content = document.getElementById('sidePanelContent');
   var duplicates = findDuplicates(part);
-  var sc = null;
-  var toolSc = null;
-  if (part.volume_cm3 > 0 && part.process && part.material_family && part.complexity && part.coo) {
-    sc = getSC(part.volume_cm3, part.process, part.material_family, part.complexity, part.coo);
-  }
-  if (part.volume_cm3 > 0 && part.process && part.complexity && part.coo) {
-    toolSc = getToolSC(part.volume_cm3, part.process, part.complexity, part.coo);
-  }
+  var canCalcSC = part.volume_cm3 > 0 && part.process && part.material_family && part.complexity;
 
   var html = '<div class="sp-header">';
   html += '<h3>' + (part.description || 'Unnamed Part') + '</h3>';
@@ -287,7 +280,6 @@ function openSidePanel(part) {
   html += spField('Material Family', part.material_family);
   html += spField('Material', part.material);
   html += spField('Complexity', part.complexity);
-  html += spField('COO', part.coo);
   html += spField('Volume (cm3)', fmt(part.volume_cm3));
   html += spField('Revision', part.revision);
   html += spField('Finish', part.finish);
@@ -299,34 +291,36 @@ function openSidePanel(part) {
   html += '</div></div>';
 
   html += '<div class="sp-section">';
-  html += '<h4>Should-Cost Estimate</h4>';
-  if (sc !== null && isFinite(sc) && sc > 0) {
-    html += '<div class="sp-sc">';
-    html += '<div class="sp-sc-row"><span class="sp-sc-label">Part Should-Cost:</span><span class="sp-sc-val">$' + sc.toFixed(2) + '</span></div>';
-    if (part.price_hv > 0) {
-      var diff = ((part.price_hv - sc) / sc * 100);
-      var color = diff > 20 ? '#dc2626' : diff < -20 ? '#1D9E75' : '#1a1a18';
-      html += '<div class="sp-sc-row"><span class="sp-sc-label">Actual HV Price:</span><span class="sp-sc-val">$' + part.price_hv.toFixed(2) + '</span></div>';
-      html += '<div class="sp-sc-row"><span class="sp-sc-label">vs Should-Cost:</span><span class="sp-sc-val" style="color:' + color + '">' + (diff > 0 ? '+' : '') + diff.toFixed(1) + '%</span></div>';
-    }
-    if (toolSc !== null && isFinite(toolSc) && toolSc > 0) {
-      html += '<div class="sp-sc-row"><span class="sp-sc-label">Tool Should-Cost:</span><span class="sp-sc-val">$' + toolSc.toFixed(0) + '</span></div>';
-      if (part.tool_price > 0) {
-        var tDiff = ((part.tool_price - toolSc) / toolSc * 100);
-        var tColor = tDiff > 20 ? '#dc2626' : tDiff < -20 ? '#1D9E75' : '#1a1a18';
-        html += '<div class="sp-sc-row"><span class="sp-sc-label">Actual Tool Price:</span><span class="sp-sc-val">$' + part.tool_price.toFixed(0) + '</span></div>';
-        html += '<div class="sp-sc-row"><span class="sp-sc-label">vs Tool SC:</span><span class="sp-sc-val" style="color:' + tColor + '">' + (tDiff > 0 ? '+' : '') + tDiff.toFixed(1) + '%</span></div>';
+  html += '<h4>Supplier Quotes &amp; Should-Cost' + (duplicates.length > 1 ? ' (' + duplicates.length + ' quotes)' : '') + '</h4>';
+  if (canCalcSC) {
+    html += '<table class="sp-table"><thead><tr><th>Supplier</th><th>COO</th><th>Price HV</th><th>Should-Cost</th><th>vs SC</th><th>Tool $</th><th>Tool SC</th></tr></thead><tbody>';
+    duplicates.forEach(function(d) {
+      var isThis = d.id === part.id;
+      var rowCoo = d.coo || 'US';
+      var sc = getSC(part.volume_cm3, part.process, part.material_family, part.complexity, rowCoo);
+      var toolSc = getToolSC(part.volume_cm3, part.process, part.complexity, rowCoo);
+      var priceDiff = '';
+      var priceColor = '';
+      if (d.price_hv > 0 && sc > 0 && isFinite(sc)) {
+        var pct = ((d.price_hv - sc) / sc * 100);
+        priceColor = pct > 20 ? '#dc2626' : pct < -20 ? '#1D9E75' : '#1a1a18';
+        priceDiff = '<span style="color:' + priceColor + '">' + (pct > 0 ? '+' : '') + pct.toFixed(0) + '%</span>';
       }
+      html += '<tr' + (isThis ? ' style="background:#EDF5FF;font-weight:600"' : '') + '>';
+      html += '<td>' + (d.supplier || '--') + '</td>';
+      html += '<td>' + rowCoo + '</td>';
+      html += '<td>' + (d.price_hv > 0 ? '$' + d.price_hv.toFixed(2) : '--') + '</td>';
+      html += '<td>' + (sc > 0 && isFinite(sc) ? '$' + sc.toFixed(2) : '--') + '</td>';
+      html += '<td>' + (priceDiff || '--') + '</td>';
+      html += '<td>' + (d.tool_price > 0 ? '$' + d.tool_price.toFixed(0) : '--') + '</td>';
+      html += '<td>' + (toolSc && isFinite(toolSc) && toolSc > 0 ? '$' + toolSc.toFixed(0) : '--') + '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    if (duplicates.length <= 1) {
+      html += '<p class="sp-muted">No additional quotes found for this part.</p>';
     }
-    html += '</div>';
   } else {
-    html += '<p class="sp-muted">Not enough data to calculate (needs volume, process, material family, complexity, COO)</p>';
-  }
-  html += '</div>';
-
-  html += '<div class="sp-section">';
-  html += '<h4>Supplier Quotes' + (duplicates.length > 1 ? ' (' + duplicates.length + ' quotes found)' : '') + '</h4>';
-  if (duplicates.length > 1) {
     html += '<table class="sp-table"><thead><tr><th>Supplier</th><th>COO</th><th>Price HV</th><th>Tool $</th><th>Tool LT</th></tr></thead><tbody>';
     duplicates.forEach(function(d) {
       var isThis = d.id === part.id;
@@ -339,11 +333,7 @@ function openSidePanel(part) {
       html += '</tr>';
     });
     html += '</tbody></table>';
-  } else {
-    html += '<table class="sp-table"><thead><tr><th>Supplier</th><th>COO</th><th>Price HV</th><th>Tool $</th><th>Tool LT</th></tr></thead><tbody>';
-    html += '<tr><td>' + (part.supplier || '--') + '</td><td>' + (part.coo || '--') + '</td><td>' + (part.price_hv > 0 ? '$' + part.price_hv.toFixed(2) : '--') + '</td><td>' + (part.tool_price > 0 ? '$' + part.tool_price.toFixed(0) : '--') + '</td><td>' + (part.tool_lt > 0 ? part.tool_lt + ' wks' : '--') + '</td></tr>';
-    html += '</tbody></table>';
-    html += '<p class="sp-muted">No additional quotes found for this part.</p>';
+    html += '<p class="sp-muted">Should-cost not available (needs volume, process, material family, and complexity)</p>';
   }
   html += '</div>';
 
