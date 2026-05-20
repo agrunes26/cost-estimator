@@ -39,6 +39,12 @@ def init_auth_db():
     )''')
     c.execute('INSERT OR IGNORE INTO users (email, added_by, added_at) VALUES (?, ?, ?)',
               (ADMIN_EMAIL.lower(), 'SYSTEM', datetime.now().isoformat()))
+    # Set default admin password on first run if not already set
+    row = c.execute('SELECT password_hash FROM users WHERE email=?', (ADMIN_EMAIL.lower(),)).fetchone()
+    if row and not row[0]:
+        from werkzeug.security import generate_password_hash
+        c.execute('UPDATE users SET password_hash=?, name=? WHERE email=?',
+                  (generate_password_hash('Generac2026'), 'Admin', ADMIN_EMAIL.lower()))
     conn.commit()
     conn.close()
 
