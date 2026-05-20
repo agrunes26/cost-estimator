@@ -95,13 +95,27 @@ def api_import_parts():
             'price_hv': ['price_hv', 'price', 'hv price', 'unit price', 'cost', 'high volume pricing ($)', 'high volume pricing'],
             'tool_price': ['tool_price', 'tool price', 'tooling', 'tooling cost', 'tool cost'],
             'tool_lt': ['tool_lt', 'tool lead time', 'tool lt', 'lead time', 'tool lt (wks)'],
-            'supplier': ['supplier', 'vendor', 'supply']
+            'supplier': ['supplier', 'vendor', 'supply'],
+            'product': ['product', 'program', 'project'],
+            'revision': ['revision', 'rev'],
+            'finish': ['finish', 'surface finish', 'coating'],
+            'thickness_mm': ['thickness_mm', 'thickness (mm)', 'thickness', 'thk'],
+            'envelope_x_mm': ['envelope_x_mm', 'envelope x (mm)', 'envelope x', 'x (mm)'],
+            'envelope_y_mm': ['envelope_y_mm', 'envelope y (mm)', 'envelope y', 'y (mm)'],
+            'envelope_z_mm': ['envelope_z_mm', 'envelope z (mm)', 'envelope z', 'z (mm)'],
+            'production_lt': ['production_lt', 'production lt (wks)', 'production lt', 'prod lt']
         }
         for field, names in aliases.items():
             for i, h in enumerate(headers):
                 if h in names:
                     col_map[field] = i
                     break
+        # Detect product columns (R3, R2 INV, R2 CAB, R2 SDS, G1 ACSC, G1 MI, GB1800)
+        product_cols = {}
+        product_names = ['r3', 'r2 inv', 'r2 cab', 'r2 sds', 'g1 acsc', 'g1 mi', 'gb1800']
+        for i, h in enumerate(headers):
+            if h in product_names:
+                product_cols[i] = h.upper()
         parts = []
         for row in ws.iter_rows(min_row=2, values_only=True):
             if not row or all(v is None for v in row):
@@ -112,6 +126,14 @@ def api_import_parts():
                 if val is None:
                     val = '' if field in ('part_number', 'description', 'process', 'material_family', 'material', 'coo', 'supplier') else 0
                 p[field] = val
+            # Combine product columns into one field
+            prods = []
+            for idx, name in product_cols.items():
+                val = row[idx] if idx < len(row) else None
+                if val and str(val).strip().upper() in ('X', 'YES', '1', 'TRUE'):
+                    prods.append(name)
+            if prods:
+                p['product'] = ', '.join(prods)
             if p.get('process') or p.get('part_number') or p.get('description'):
                 parts.append(p)
         count = bulk_insert_parts(parts, session.get('user_email', ''))
@@ -128,12 +150,16 @@ def api_export_parts():
     ws = wb.active
     ws.title = 'Parts'
     headers = ['Part Number', 'Description', 'Process', 'Material Family', 'Material',
-               'Complexity', 'COO', 'Volume (cm3)', 'Price HV', 'Tool Price', 'Tool LT', 'Supplier']
+               'Complexity', 'COO', 'Volume (cm3)', 'Price HV', 'Tool Price', 'Tool LT', 'Supplier',
+               'Product', 'Revision', 'Finish', 'Thickness (mm)', 'Envelope X (mm)', 'Envelope Y (mm)', 'Envelope Z (mm)', 'Production LT (wks)']
     ws.append(headers)
     for p in parts:
         ws.append([p['part_number'], p['description'], p['process'], p['material_family'],
                    p['material'], p['complexity'], p['coo'], p['volume_cm3'],
-                   p['price_hv'], p['tool_price'], p['tool_lt'], p['supplier']])
+                   p['price_hv'], p['tool_price'], p['tool_lt'], p['supplier'],
+                   p.get('product', ''), p.get('revision', ''), p.get('finish', ''),
+                   p.get('thickness_mm', 0), p.get('envelope_x_mm', 0), p.get('envelope_y_mm', 0),
+                   p.get('envelope_z_mm', 0), p.get('production_lt', 0)])
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
