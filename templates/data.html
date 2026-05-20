@@ -31,11 +31,13 @@ h1{font-size:22px;font-weight:600;margin-bottom:4px}
 .toolbar input[type=text]{padding:7px 12px;font-size:13px;border:0.5px solid rgba(0,0,0,0.18);border-radius:8px;width:250px}
 .toolbar input[type=file]{display:none}
 .count{font-size:12px;color:#73726c;margin-left:auto}
-.tbl-wrap{overflow-x:auto;max-height:600px;overflow-y:auto}
+.tbl-wrap{overflow-x:auto;max-height:600px;overflow-y:auto;position:relative}
 table{width:100%;border-collapse:collapse;font-size:12px}
-th{text-align:left;padding:8px;font-size:11px;font-weight:600;color:#73726c;text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid rgba(0,0,0,0.1);white-space:nowrap;cursor:pointer;user-select:none;background:#f5f5f2;position:sticky;top:0}
+th{text-align:left;padding:8px;font-size:11px;font-weight:600;color:#73726c;text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid rgba(0,0,0,0.1);white-space:nowrap;cursor:pointer;user-select:none;background:#f5f5f2;position:sticky;top:0;z-index:2}
 th:hover{background:#e8e8e5}
 th .sort-arrow{margin-left:3px;font-size:10px}
+#filterRow th{position:sticky;top:32px;z-index:2;background:#fff;cursor:default;padding:4px;border-bottom:1px solid rgba(0,0,0,0.1)}
+#filterRow th:hover{background:#fff}
 td{padding:6px 8px;border-bottom:1px solid rgba(0,0,0,0.05)}
 tr:hover td{background:#f9f9f7}
 td.editable{cursor:pointer}
@@ -47,6 +49,17 @@ td input{width:100%;padding:3px 6px;font-size:12px;border:1px solid #378ADD;bord
 .msg{padding:10px 16px;border-radius:8px;margin-bottom:12px;font-size:13px;display:none}
 .msg.success{display:block;background:#f0fdf4;color:#166534;border:1px solid #86efac}
 .msg.error{display:block;background:#fef2f2;color:#dc2626;border:1px solid #fca5a5}
+.filter-wrap{position:relative}
+.filter-btn{width:100%;font-size:11px;padding:3px 6px;border:1px solid rgba(0,0,0,0.15);border-radius:4px;background:#fff;cursor:pointer;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.filter-btn:hover{background:#f5f5f2}
+.filter-btn.active{background:#EDF5FF;border-color:#378ADD;color:#378ADD;font-weight:600}
+.filter-dropdown{position:absolute;top:100%;left:0;min-width:180px;max-height:250px;overflow-y:auto;background:#fff;border:1px solid rgba(0,0,0,0.15);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.1);z-index:100;padding:6px 0}
+.filter-option{display:block;padding:4px 12px;font-size:12px;cursor:pointer;white-space:nowrap}
+.filter-option:hover{background:#f5f5f2}
+.filter-option input{margin-right:6px}
+.filter-clear{padding:4px 12px;font-size:11px;color:#dc2626;cursor:pointer;border-bottom:1px solid rgba(0,0,0,0.08);margin-bottom:4px}
+.filter-clear:hover{background:#fef2f2}
+.filter-cell{background:#fff !important}
 </style>
 </head>
 <body>
@@ -73,6 +86,7 @@ td input{width:100%;padding:3px 6px;font-size:12px;border:1px solid #378ADD;bord
   <div class="form-grid">
     <div class="form-field"><label>Part Number</label><input type="text" id="add_pn"></div>
     <div class="form-field"><label>Description</label><input type="text" id="add_desc"></div>
+    <div class="form-field"><label>Product</label><input type="text" id="add_product" placeholder="e.g. R3, R2 INV"></div>
     <div class="form-field"><label>Process *</label>
       <select id="add_proc">
         <option value="">-- select --</option>
@@ -107,6 +121,13 @@ td input{width:100%;padding:3px 6px;font-size:12px;border:1px solid #378ADD;bord
     <div class="form-field"><label>Tool Price ($)</label><input type="number" id="add_tool" min="0" step="any"></div>
     <div class="form-field"><label>Tool LT (wks)</label><input type="number" id="add_toollt" min="0" step="1"></div>
     <div class="form-field"><label>Supplier</label><input type="text" id="add_supplier"></div>
+    <div class="form-field"><label>Revision</label><input type="text" id="add_rev"></div>
+    <div class="form-field"><label>Finish</label><input type="text" id="add_finish"></div>
+    <div class="form-field"><label>Thickness (mm)</label><input type="number" id="add_thk" min="0" step="any"></div>
+    <div class="form-field"><label>Envelope X (mm)</label><input type="number" id="add_x" min="0" step="any"></div>
+    <div class="form-field"><label>Envelope Y (mm)</label><input type="number" id="add_y" min="0" step="any"></div>
+    <div class="form-field"><label>Envelope Z (mm)</label><input type="number" id="add_z" min="0" step="any"></div>
+    <div class="form-field"><label>Production LT (wks)</label><input type="number" id="add_prodlt" min="0" step="1"></div>
   </div>
   <button class="btn btn-success" onclick="addComponent()">+ Add to database</button>
 </div>
