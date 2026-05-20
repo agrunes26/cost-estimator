@@ -719,7 +719,7 @@ function renderTable(){
 
 
 
-    const tr=document.createElement('tr');
+    const tr=document.createElement('tr');tr.style.cursor='pointer';tr.onclick=function(){if(typeof openSidePanel==='function'&&typeof findPartByPoint==='function'){var match=null;for(var i=0;i<(typeof ALL_PARTS_RAW!=='undefined'?ALL_PARTS_RAW:[]).length;i++){var p=ALL_PARTS_RAW[i];if(p.description===row.description&&Math.abs(p.volume_cm3-row.volume_cm3)<0.001){match=p;break;}}if(match)openSidePanel(match);}};
 
 
 
