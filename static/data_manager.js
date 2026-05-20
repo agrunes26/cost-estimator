@@ -5,16 +5,24 @@ let filters = {};
 const COLS = [
   {key:'part_number', label:'Part #'},
   {key:'description', label:'Description'},
+  {key:'product', label:'Product'},
   {key:'process', label:'Process'},
-  {key:'material_family', label:'Material'},
-  {key:'material', label:'Material (specific)'},
+  {key:'material_family', label:'Material Family'},
+  {key:'material', label:'Material'},
   {key:'complexity', label:'Cx'},
   {key:'coo', label:'COO'},
   {key:'volume_cm3', label:'Vol (cm3)'},
   {key:'price_hv', label:'Price HV ($)'},
-  {key:'tool_price', label:'Tool Price ($)'},
+  {key:'tool_price', label:'Tool ($)'},
   {key:'tool_lt', label:'Tool LT'},
-  {key:'supplier', label:'Supplier'}
+  {key:'supplier', label:'Supplier'},
+  {key:'revision', label:'Rev'},
+  {key:'finish', label:'Finish'},
+  {key:'thickness_mm', label:'Thk (mm)'},
+  {key:'envelope_x_mm', label:'X (mm)'},
+  {key:'envelope_y_mm', label:'Y (mm)'},
+  {key:'envelope_z_mm', label:'Z (mm)'},
+  {key:'production_lt', label:'Prod LT'}
 ];
 
 function showMsg(text, type) {
@@ -60,7 +68,7 @@ function renderFilterRow() {
     document.getElementById('headerRow').parentNode.appendChild(fr);
   }
   fr.innerHTML = '';
-  const filterableCols = ['process', 'material_family', 'material', 'coo', 'complexity', 'supplier'];
+  const filterableCols = ['part_number', 'description', 'product', 'process', 'material_family', 'material', 'complexity', 'coo', 'supplier', 'revision', 'finish'];
   COLS.forEach(col => {
     const td = document.createElement('th');
     td.style.padding = '4px';
