@@ -128,7 +128,12 @@ def bulk_insert_parts(parts_list, added_by):
              p.get('complexity', 1), p.get('coo', ''),
              p.get('volume_cm3', 0), p.get('price_hv', 0),
              p.get('tool_price', 0), p.get('tool_lt', 0),
-             p.get('supplier', ''), added_by, now))
+             p.get('supplier', ''),
+             p.get('product', ''), p.get('revision', ''),
+             p.get('finish', ''), p.get('thickness_mm', 0),
+             p.get('envelope_x_mm', 0), p.get('envelope_y_mm', 0),
+             p.get('envelope_z_mm', 0), p.get('production_lt', 0),
+             added_by, now))
     conn.commit()
     conn.close()
     return len(parts_list)
