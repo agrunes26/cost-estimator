@@ -51,9 +51,13 @@ td{padding:8px;border-bottom:1px solid rgba(0,0,0,0.05)}
       <td>{{ u.name or '—' }}</td>
       <td>{{ u.added_by or '—' }}</td>
       <td>{{ u.last_login[:10] if u.last_login else 'Never' }}</td>
-      <td>{% if u.email in admin_emails %}<span class="badge">Admin</span>{% else %}User{% endif %}</td>
-      <td>
-        {% if u.email not in admin_emails %}
+      <td>{% if u.role == 'admin' %}<span class="badge">Admin</span>{% else %}User{% endif %}</td>
+      <td style="display:flex;gap:4px">
+        {% if u.email != admin_email %}
+        <form method="POST" action="/admin/toggle-role" style="display:inline">
+          <input type="hidden" name="email" value="{{ u.email }}">
+          <button class="btn" style="font-size:11px;padding:4px 10px">{{ 'Make User' if u.role == 'admin' else 'Make Admin' }}</button>
+        </form>
         <form method="POST" action="/admin/remove" style="display:inline">
           <input type="hidden" name="email" value="{{ u.email }}">
           <button class="btn btn-danger" onclick="return confirm('Remove this user?')">Remove</button>
