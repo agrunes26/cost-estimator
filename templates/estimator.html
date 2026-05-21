@@ -97,6 +97,10 @@ h1{font-size:22px;font-weight:600;margin-bottom:2px}
 .tab-btn.active{background:#1a1a18;color:#fff;border-color:#1a1a18}
 .coo-badge{display:inline-block;font-size:11px;font-weight:600;padding:1px 7px;border-radius:4px;background:#E6F1FB;color:#185FA5;margin-left:3px}
 .footer{text-align:center;font-size:11px;color:#888780;margin-top:24px;padding-top:12px;border-top:0.5px solid rgba(0,0,0,0.08)}
+.tip{position:relative;display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:#e0e0dc;color:#555;font-size:10px;font-weight:700;cursor:help;margin-left:5px;vertical-align:middle;flex-shrink:0}
+.tip:hover{background:#378ADD;color:#fff}
+.tip .tip-text{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#1a1a18;color:#fff;font-size:11px;font-weight:400;padding:8px 12px;border-radius:8px;white-space:normal;width:220px;line-height:1.4;z-index:500;box-shadow:0 4px 12px rgba(0,0,0,0.15);text-transform:none;letter-spacing:normal}
+.tip:hover .tip-text{display:block}
 .new-badge{display:inline-block;font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px;background:#E1F5EE;color:#0F6E56;margin-left:5px;vertical-align:middle}
 .quick-est-bar{background:#FFF8EC;border:1px solid #F0D78C;border-radius:10px;padding:9px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .quick-est-bar input{font-size:13px;padding:5px 9px;border:0.5px solid rgba(0,0,0,0.2);border-radius:8px;background:#fff;color:#1a1a18;width:140px}
@@ -147,7 +151,7 @@ h1{font-size:22px;font-weight:600;margin-bottom:2px}
 <div class="card">
 <div class="top-row" id="filterRow"></div>
 <div class="opts-row">
-  <div class="sw"><span class="sw-lbl">Color by</span>
+  <div class="sw"><span class="sw-lbl">Color by<span class="tip">i<span class="tip-text">Change how data points are colored on the chart. Pick a category to visually group your parts.</span></span></span>
     <select id="colorBy" onchange="draw()">
       <option value="process">Process</option>
       <option value="material_family">Material family</option>
@@ -155,7 +159,7 @@ h1{font-size:22px;font-weight:600;margin-bottom:2px}
       <option value="coo">Country of origin</option>
     </select>
   </div>
-  <div class="sw"><span class="sw-lbl">Should-cost COO</span>
+  <div class="sw"><span class="sw-lbl">Should-cost COO<span class="tip">i<span class="tip-text">Select a country of origin to see the should-cost curve for that region. Different countries have different labor and overhead rates.</span></span></span>
     <select id="scCOO" onchange="draw()">
       <option value="CN">China (CN)</option>
       <option value="MX">Mexico (MX)</option>
@@ -166,11 +170,11 @@ h1{font-size:22px;font-weight:600;margin-bottom:2px}
       <option value="DE">Germany (DE)</option>
     </select>
   </div>
-  <label class="tog"><input type="checkbox" id="logScale" onchange="draw()" checked> Log scale</label>
-  <label class="tog"><input type="checkbox" id="showSC" onchange="draw()" checked> Should-cost</label>
-  <label class="tog"><input type="checkbox" id="showBand" onchange="draw()" checked> &plusmn;20% band</label>
+  <label class="tog"><input type="checkbox" id="logScale" onchange="draw()" checked> Log scale<span class="tip">i<span class="tip-text">Log scale spreads out small values so you can see both cheap and expensive parts clearly. Turn off for a linear view.</span></span></label>
+  <label class="tog"><input type="checkbox" id="showSC" onchange="draw()" checked> Should-cost<span class="tip">i<span class="tip-text">Show/hide the should-cost model curve. This estimates what a part "should" cost based on volume, process, material, and complexity.</span></span></label>
+  <label class="tog"><input type="checkbox" id="showBand" onchange="draw()" checked> &plusmn;20% band<span class="tip">i<span class="tip-text">Show a shaded band around the should-cost line. Points outside this band may be overpriced or underpriced.</span></span></label>
   <label class="tog"><input type="checkbox" id="showTool" onchange="draw()" checked> Tooling axis</label>
-  <div class="sw"><span class="sw-lbl">Trendline</span>
+  <div class="sw"><span class="sw-lbl">Trendline<span class="tip">i<span class="tip-text">Fit a line through the actual data points. "Auto" picks whichever type fits best. The R² value shows how well it fits (closer to 1 = better).</span></span></span>
     <select id="trendType" onchange="draw()">
       <option value="auto">Auto (best fit)</option>
       <option value="power">Power</option>
@@ -193,7 +197,7 @@ h1{font-size:22px;font-weight:600;margin-bottom:2px}
   <span>Tool SC: <strong id="scToolInfo" style="color:#0F6E56">--</strong></span>
 </div>
 <div class="quick-est-bar">
-  <span class="sw-lbl">Quick estimate</span>
+  <span class="sw-lbl">Quick estimate<span class="tip">i<span class="tip-text">Type a material volume in cm³ to instantly see the estimated part cost and tooling cost based on the current should-cost model and filters.</span></span></span>
   <input type="number" id="quickVol" placeholder="Volume (cm3)" min="0" step="any" onkeydown="if(event.key==='Enter')quickEstimate()">
   <button class="btn btn-primary" onclick="quickEstimate()" style="padding:5px 12px;font-size:12px">Estimate</button>
   <button class="btn" onclick="clearQuickEst()" style="padding:5px 10px;font-size:12px">Clear</button>
@@ -211,7 +215,7 @@ h1{font-size:22px;font-weight:600;margin-bottom:2px}
 
 <div class="panel" id="myPartPanel">
   <div class="panel-hdr" onclick="togglePanel('myPart')" id="myPartHdr">
-    <div><div class="ph-title">My Part</div>
+    <div><div class="ph-title">My Part<span class="tip">i<span class="tip-text">Enter details for a part you're evaluating. It will appear on the chart as a temporary point so you can compare it against existing data and the should-cost model.</span></span></div>
     <div class="ph-sub">Enter part details to get a cost estimate and plot it on the chart (temporary)</div></div>
     <button class="panel-toggle" id="myPartBtn">Show</button>
   </div>
@@ -291,7 +295,7 @@ h1{font-size:22px;font-weight:600;margin-bottom:2px}
 
 <div class="panel">
   <div class="panel-hdr" onclick="togglePanel('sc')" id="scHdr">
-    <div><div class="ph-title">Should-cost model parameters</div>
+    <div><div class="ph-title">Should-cost model parameters<span class="tip">i<span class="tip-text">These control how the should-cost curve is calculated. Adjust values for "what-if" scenarios. Only admins can save changes permanently — your tweaks are temporary until saved.</span></span></div>
     <div class="ph-sub">Adjust machine rates, cycle times, COO multipliers and material prices. Changes take effect on next draw.</div></div>
     <button class="panel-toggle" id="scBtn">Show</button>
   </div>
