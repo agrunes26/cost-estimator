@@ -238,10 +238,6 @@ function renderTable() {
       if (typeof val === 'number' && col.key.includes('price')) val = val.toFixed(2);
       else if (typeof val === 'number' && col.key === 'volume_cm3') val = val.toFixed(2);
       td.textContent = val;
-      if (IS_ADMIN) {
-        td.className = 'editable';
-        td.ondblclick = function(e) { e.stopPropagation(); startEdit(td, p, col.key); };
-      }
       tr.appendChild(td);
     });
     if (IS_ADMIN) {
@@ -259,7 +255,10 @@ function renderTable() {
   document.getElementById('rowCount').textContent = rows.length + ' of ' + allParts.length + ' rows';
 }
 
+var currentSidePart = null;
+
 function openSidePanel(part) {
+  currentSidePart = part;
   var panel = document.getElementById('sidePanel');
   var content = document.getElementById('sidePanelContent');
   var duplicates = findDuplicates(part);
@@ -270,9 +269,11 @@ function openSidePanel(part) {
   html += '<button class="sp-close" onclick="closeSidePanel()">✕</button>';
   html += '</div>';
 
-  html += '<div class="sp-section">';
-  html += '<h4>Part Details</h4>';
-  html += '<div class="sp-grid">';
+  html += '<div class="sp-section" id="sp-details-section">';
+  html += '<h4 style="display:flex;align-items:center;justify-content:space-between;">Part Details';
+  if (IS_ADMIN) html += '<button class="btn" style="font-size:11px;padding:4px 12px;" onclick="startEditPart()">Edit</button>';
+  html += '</h4>';
+  html += '<div class="sp-grid" id="sp-details-grid">';
   html += spField('Part #', part.part_number);
   html += spField('Description', part.description);
   html += spField('Product', part.product);
@@ -291,7 +292,22 @@ function openSidePanel(part) {
   html += '</div></div>';
 
   html += '<div class="sp-section">';
-  html += '<h4>Supplier Quotes &amp; Should-Cost' + (duplicates.length > 1 ? ' (' + duplicates.length + ' quotes)' : '') + '</h4>';
+  html += '<h4 style="display:flex;align-items:center;justify-content:space-between;">Supplier Quotes &amp; Should-Cost' + (duplicates.length > 1 ? ' (' + duplicates.length + ' quotes)' : '');
+  if (IS_ADMIN) html += '<button class="btn btn-success" style="font-size:11px;padding:4px 12px;" onclick="showAddQuoteForm()">+ Add Quote</button>';
+  html += '</h4>';
+
+  html += '<div id="sp-add-quote-form" style="display:none;margin-bottom:12px;padding:12px;background:#f5f5f2;border-radius:8px;border:1px solid rgba(0,0,0,0.1);">';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">';
+  html += '<div class="sp-field"><span class="sp-field-label">Supplier *</span><input type="text" id="aq-supplier" style="width:100%;padding:5px 8px;font-size:12px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;"></div>';
+  html += '<div class="sp-field"><span class="sp-field-label">COO *</span><select id="aq-coo" style="width:100%;padding:5px 8px;font-size:12px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;"><option value="">--</option><option value="CN">CN</option><option value="MX">MX</option><option value="US">US</option><option value="IN">IN</option><option value="TW">TW</option><option value="KR">KR</option><option value="DE">DE</option></select></div>';
+  html += '<div class="sp-field"><span class="sp-field-label">Price HV ($)</span><input type="number" id="aq-price" min="0" step="any" style="width:100%;padding:5px 8px;font-size:12px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;"></div>';
+  html += '<div class="sp-field"><span class="sp-field-label">Tool Price ($)</span><input type="number" id="aq-tool" min="0" step="any" style="width:100%;padding:5px 8px;font-size:12px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;"></div>';
+  html += '<div class="sp-field"><span class="sp-field-label">Tool LT (wks)</span><input type="number" id="aq-toollt" min="0" step="1" style="width:100%;padding:5px 8px;font-size:12px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;"></div>';
+  html += '<div class="sp-field"><span class="sp-field-label">Production LT (wks)</span><input type="number" id="aq-prodlt" min="0" step="1" style="width:100%;padding:5px 8px;font-size:12px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;"></div>';
+  html += '</div>';
+  html += '<div style="display:flex;gap:8px;"><button class="btn btn-success" style="font-size:12px;padding:6px 14px;" onclick="saveQuote()">Save Quote</button><button class="btn" style="font-size:12px;padding:6px 14px;" onclick="hideAddQuoteForm()">Cancel</button></div>';
+  html += '</div>';
+
   if (canCalcSC) {
     html += '<table class="sp-table"><thead><tr><th>Supplier</th><th>COO</th><th>Price HV</th><th>Should-Cost</th><th>vs SC</th><th>Tool $</th><th>Tool SC</th></tr></thead><tbody>';
     duplicates.forEach(function(d) {
@@ -340,6 +356,124 @@ function openSidePanel(part) {
   content.innerHTML = html;
   panel.classList.add('open');
   document.getElementById('overlay').classList.add('open');
+}
+
+function startEditPart() {
+  if (!currentSidePart) return;
+  var p = currentSidePart;
+  var grid = document.getElementById('sp-details-grid');
+  var fields = [
+    {key:'part_number', label:'Part #', type:'text'},
+    {key:'description', label:'Description', type:'text'},
+    {key:'product', label:'Product', type:'text'},
+    {key:'process', label:'Process', type:'select', opts:['','Antenna','Bus Bar','Die Cast','Die Cut','Dispensed','Extrusion','Fastener','Injection Molding','Label','PCBA','Packaging','Pallet','Saw Cut','Sheet Metal','Stamping','Sub-Assy','Thermoform']},
+    {key:'material_family', label:'Material Family', type:'select', opts:['','Aluminum','Aluminum Nitride','Cardboard','EMI','Formex','Insulator','Label Stock','Lumber','Nickel','PBT','PC','PCB','PP','Potting','RTV','Rubber','Stainless Steel','Steel','TIM','Ultem']},
+    {key:'material', label:'Material', type:'text'},
+    {key:'complexity', label:'Complexity', type:'select', opts:['','1','2','3']},
+    {key:'volume_cm3', label:'Volume (cm3)', type:'number'},
+    {key:'revision', label:'Revision', type:'text'},
+    {key:'finish', label:'Finish', type:'text'},
+    {key:'thickness_mm', label:'Thickness (mm)', type:'number'},
+    {key:'envelope_x_mm', label:'Envelope X (mm)', type:'number'},
+    {key:'envelope_y_mm', label:'Envelope Y (mm)', type:'number'},
+    {key:'envelope_z_mm', label:'Envelope Z (mm)', type:'number'},
+    {key:'production_lt', label:'Production LT (wks)', type:'number'}
+  ];
+  var html = '';
+  fields.forEach(function(f) {
+    var val = p[f.key] || '';
+    html += '<div class="sp-field"><span class="sp-field-label">' + f.label + '</span>';
+    if (f.type === 'select') {
+      html += '<select id="spedit-' + f.key + '" style="width:100%;padding:4px 8px;font-size:12px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;">';
+      f.opts.forEach(function(o) { html += '<option value="' + o + '"' + (String(val) === o ? ' selected' : '') + '>' + (o || '--') + '</option>'; });
+      html += '</select>';
+    } else {
+      html += '<input type="' + f.type + '" id="spedit-' + f.key + '" value="' + val + '" style="width:100%;padding:4px 8px;font-size:12px;border:1px solid rgba(0,0,0,0.15);border-radius:6px;">';
+    }
+    html += '</div>';
+  });
+  html += '<div style="grid-column:1/-1;display:flex;gap:8px;margin-top:8px;">';
+  html += '<button class="btn btn-primary" style="font-size:12px;padding:6px 14px;" onclick="saveEditPart()">Save</button>';
+  html += '<button class="btn" style="font-size:12px;padding:6px 14px;" onclick="openSidePanel(currentSidePart)">Cancel</button>';
+  html += '</div>';
+  grid.innerHTML = html;
+}
+
+async function saveEditPart() {
+  if (!currentSidePart) return;
+  var p = currentSidePart;
+  var textFields = ['part_number','description','product','process','material_family','material','revision','finish'];
+  var numFields = ['complexity','volume_cm3','thickness_mm','envelope_x_mm','envelope_y_mm','envelope_z_mm','production_lt'];
+  textFields.forEach(function(k) {
+    var el = document.getElementById('spedit-' + k);
+    if (el) p[k] = el.value.trim();
+  });
+  numFields.forEach(function(k) {
+    var el = document.getElementById('spedit-' + k);
+    if (el) p[k] = parseFloat(el.value) || 0;
+  });
+  var res = await fetch('/api/parts/' + p.id, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(p)
+  });
+  if (res.ok) {
+    showMsg('Part updated', 'success');
+    renderTable();
+    openSidePanel(p);
+  } else {
+    showMsg('Error saving changes', 'error');
+  }
+}
+
+function showAddQuoteForm() {
+  document.getElementById('sp-add-quote-form').style.display = 'block';
+}
+
+function hideAddQuoteForm() {
+  document.getElementById('sp-add-quote-form').style.display = 'none';
+}
+
+async function saveQuote() {
+  if (!currentSidePart) return;
+  var p = currentSidePart;
+  var supplier = document.getElementById('aq-supplier').value.trim();
+  var coo = document.getElementById('aq-coo').value;
+  if (!supplier || !coo) { showMsg('Supplier and COO are required', 'error'); return; }
+  var quoteData = {
+    part_number: p.part_number,
+    description: p.description,
+    product: p.product,
+    process: p.process,
+    material_family: p.material_family,
+    material: p.material,
+    complexity: p.complexity,
+    volume_cm3: p.volume_cm3,
+    revision: p.revision,
+    finish: p.finish,
+    thickness_mm: p.thickness_mm,
+    envelope_x_mm: p.envelope_x_mm,
+    envelope_y_mm: p.envelope_y_mm,
+    envelope_z_mm: p.envelope_z_mm,
+    supplier: supplier,
+    coo: coo,
+    price_hv: parseFloat(document.getElementById('aq-price').value) || 0,
+    tool_price: parseFloat(document.getElementById('aq-tool').value) || 0,
+    tool_lt: parseFloat(document.getElementById('aq-toollt').value) || 0,
+    production_lt: parseFloat(document.getElementById('aq-prodlt').value) || 0
+  };
+  var res = await fetch('/api/parts', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(quoteData)
+  });
+  if (res.ok) {
+    showMsg('Quote added', 'success');
+    await loadData();
+    openSidePanel(currentSidePart);
+  } else {
+    showMsg('Error adding quote', 'error');
+  }
 }
 
 function closeSidePanel() {
